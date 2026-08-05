@@ -21,6 +21,7 @@
 	--font-table: "SF Mono", "Roboto Mono", monospace;
 
 	/* Semantic colors */
+	--color-surface: #fff;
 	--color-primary: #3548ff;
 	--color-primary-50: #eef0ff;
 	--color-primary-100: #dbe0ff;
@@ -57,6 +58,32 @@
 	--radius-md: 10px;
 	--radius-lg: 14px;
 	--radius-full: 999px;
+}
+
+/*
+ * Dark theme — overrides the surface/secondary scale only (not primary/
+ * danger/success/warning, which read fine as-is on a dark background).
+ * Toggled by setting data-theme="dark" on <html> (see App.tsx).
+ */
+[data-theme="dark"] {
+	--color-surface: #1a1d24;
+
+	--color-secondary-50: #22262e;
+	--color-secondary-100: #2e333d;
+	--color-secondary-300: #6b7280;
+	--color-secondary-500: #9aa1ac;
+	--color-secondary-900: #e8eaed;
+
+	--color-primary-50: #1c2340;
+	--color-primary-100: #2a3562;
+
+	--color-danger-50: #3a1f22;
+	--color-success-50: #1c2e14;
+	--color-warning-50: #332a10;
+}
+
+[data-theme="dark"] body {
+	background: #14161b;
 }
 
 .text-preset-1 { font-size: var(--text-preset-1); }

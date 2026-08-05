@@ -1,12 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { WidgetConfig } from "../types/widget";
-import { PortalProvider } from "../context/PortalContext";
+import { usePortalContext } from "../context/PortalContext";
 import { PortalCanvas } from "../components/PortalCanvas";
 import { StencilPanel } from "../components/builder/StencilPanel";
 import { PropertiesPanel } from "../components/builder/PropertiesPanel";
 import { BuilderHeader } from "../components/builder/BuilderHeader";
 import { createWidgetFromStencil } from "../components/builder/createWidget";
 import { stencilSections, type StencilItem } from "../components/builder/stencilConfig";
+import { Icon } from "../components/icons/Icon";
+import { useWidgetHistory } from "../hooks/useWidgetHistory";
+import { draftStorage, publishedStorage } from "../utils/persistence";
+import { CommandPalette, type Command } from "../components/builder/CommandPalette";
+import type { Theme, SaveStatus } from "../components/builder/BuilderHeader";
+import { deviceWidths, type DeviceMode } from "../components/builder/deviceModes";
+
+const THEME_KEY = "portal-redesign:theme";
+const AUTOSAVE_DELAY_MS = 1200;
+
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 1.5;
+const ZOOM_STEP = 0.1;
 
 function findStencilItem(key: string): StencilItem | undefined {
 	for (const section of stencilSections) {
@@ -74,21 +87,72 @@ const initialWidgets: WidgetConfig[] = [
 	},
 ];
 
+let duplicateCounter = 0;
+
+/** True while focus is in a text input/select — so Delete/Backspace there edits text, not widgets. */
+function isTypingTarget(el: EventTarget | null): boolean {
+	if (!(el instanceof HTMLElement)) return false;
+	return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable;
+}
+
 export function PortalPage() {
+	const { dataMode, setDataMode } = usePortalContext();
+
 	const [pageTitle, setPageTitle] = useState("Test2");
-	const [widgets, setWidgets] = useState<WidgetConfig[]>(initialWidgets);
-	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const history = useWidgetHistory(initialWidgets);
+	const widgets = history.widgets;
+
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [toast, setToast] = useState<string | null>(null);
+	const [stencilOpen, setStencilOpen] = useState(true);
+	const [propertiesOpen, setPropertiesOpen] = useState(true);
+	const [presentationMode, setPresentationMode] = useState(false);
+
+	// Publish/preview: `publishedWidgets` is an independent SNAPSHOT of the
+	// draft, not a live reference — editing the draft after publishing does
+	// NOT change what Preview shows until you publish again. This is the
+	// prototype's answer to the real codebase's documented bug
+	// (portal-published-snapshot-stale-hide-unshared-pages-flag.md), where a
+	// flag was read from a stale published snapshot by accident; here the
+	// snapshot-vs-draft split is explicit and intentional, not accidental.
+	const [published, setPublished] = useState(false);
+	const [publishedWidgets, setPublishedWidgets] = useState<WidgetConfig[] | null>(null);
+	const [previewMode, setPreviewMode] = useState(false);
+	const [dataModeBeforePreview, setDataModeBeforePreview] = useState<typeof dataMode | null>(null);
+	const [zoom, setZoom] = useState(1);
+	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+	const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(THEME_KEY) as Theme) || "light");
+	const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+	const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
+
+	// Load persisted draft + published snapshot once on mount.
+	useEffect(() => {
+		const draft = draftStorage.load();
+		if (draft) {
+			history.replace(draft.widgets);
+			setPageTitle(draft.pageTitle);
+		}
+		const pub = publishedStorage.load();
+		if (pub) {
+			setPublishedWidgets(pub.widgets);
+			setPublished(true);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	const showToast = (message: string) => {
+		setToast(message);
+		window.setTimeout(() => setToast(null), 2500);
+	};
 
 	const handleAddWidget = (item: StencilItem) => {
 		const created = createWidgetFromStencil(item, widgets);
 		if (!created) {
-			setToast(`"${item.label}" isn't implemented in this prototype yet.`);
-			window.setTimeout(() => setToast(null), 2500);
+			showToast(`"${item.label}" isn't implemented in this prototype yet.`);
 			return;
 		}
-		setWidgets((prev) => [...prev, created]);
-		setSelectedId(created.id);
+		history.set([...widgets, created]);
+		setSelectedIds(new Set([created.id]));
 	};
 
 	/** Used by canvas drop handling — stencil items are identified by key over the DataTransfer wire format. */
@@ -98,47 +162,305 @@ export function PortalPage() {
 	};
 
 	const handleDeleteWidget = (id: string) => {
-		setWidgets((prev) => prev.filter((w) => w.id !== id));
-		setSelectedId((current) => (current === id ? null : current));
+		history.set(widgets.filter((w) => w.id !== id));
+		setSelectedIds((current) => {
+			const next = new Set(current);
+			next.delete(id);
+			return next;
+		});
+	};
+
+	const handleDeleteSelected = () => {
+		if (selectedIds.size === 0) return;
+		history.set(widgets.filter((w) => !selectedIds.has(w.id)));
+		setSelectedIds(new Set());
+	};
+
+	const handleDuplicateWidget = (id: string) => {
+		const source = widgets.find((w) => w.id === id);
+		if (!source) return;
+		duplicateCounter += 1;
+		const copy: WidgetConfig = {
+			...source,
+			id: `w-dup-${duplicateCounter}`,
+			title: `${source.title} (copy)`,
+			grid: { ...source.grid, x: Math.min(source.grid.x + 1, 8 - source.grid.w), y: source.grid.y + source.grid.h },
+		};
+		history.set([...widgets, copy]);
+		setSelectedIds(new Set([copy.id]));
 	};
 
 	const handleUpdateWidget = (id: string, patch: Partial<WidgetConfig>) => {
-		setWidgets((prev) => prev.map((w) => (w.id === id ? ({ ...w, ...patch } as WidgetConfig) : w)));
+		history.set(widgets.map((w) => (w.id === id ? ({ ...w, ...patch } as WidgetConfig) : w)));
 	};
 
 	const handleMoveWidget = (id: string, position: { x: number; y: number }) => {
-		setWidgets((prev) =>
-			prev.map((w) => (w.id === id ? { ...w, grid: { ...w.grid, x: position.x, y: position.y } } : w))
+		history.set(
+			widgets.map((w) => (w.id === id ? { ...w, grid: { ...w.grid, x: position.x, y: position.y } } : w))
 		);
 	};
 
 	const handleResizeWidget = (id: string, size: { w: number; h: number }) => {
-		setWidgets((prev) =>
-			prev.map((w) => (w.id === id ? { ...w, grid: { ...w.grid, w: size.w, h: size.h } } : w))
-		);
+		history.set(widgets.map((w) => (w.id === id ? { ...w, grid: { ...w.grid, w: size.w, h: size.h } } : w)));
 	};
 
-	const selectedWidget = widgets.find((w) => w.id === selectedId) ?? null;
+	const handleSave = () => {
+		draftStorage.save({ pageTitle, widgets });
+		setSaveStatus("saved");
+		showToast("Draft saved");
+	};
+
+	const handlePublish = () => {
+		const snapshot = JSON.parse(JSON.stringify(widgets)) as WidgetConfig[];
+		setPublishedWidgets(snapshot);
+		setPublished(true);
+		publishedStorage.save({ pageTitle, widgets: snapshot });
+		showToast("Published successfully");
+	};
+
+	const enterPreview = () => {
+		if (!publishedWidgets) {
+			showToast("Nothing published yet — click Publish first.");
+			return;
+		}
+		setDataModeBeforePreview(dataMode);
+		setDataMode("published");
+		setPreviewMode(true);
+		setSelectedIds(new Set());
+	};
+
+	const exitPreview = () => {
+		setPreviewMode(false);
+		if (dataModeBeforePreview) setDataMode(dataModeBeforePreview);
+	};
+
+	const enterPresentation = () => {
+		setPresentationMode(true);
+		document.documentElement.requestFullscreen?.().catch(() => {});
+	};
+
+	const exitPresentation = () => {
+		setPresentationMode(false);
+		if (document.fullscreenElement) {
+			document.exitFullscreen?.().catch(() => {});
+		}
+	};
+
+	// Stay in sync if the user exits fullscreen via the browser's own UI/Escape
+	// rather than our "Exit presentation" button.
+	useEffect(() => {
+		const handleFullscreenChange = () => {
+			if (!document.fullscreenElement) setPresentationMode(false);
+		};
+		document.addEventListener("fullscreenchange", handleFullscreenChange);
+		return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+	}, []);
+
+	const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 100) / 100));
+	const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 100) / 100));
+
+	useEffect(() => {
+		document.documentElement.dataset.theme = theme;
+		localStorage.setItem(THEME_KEY, theme);
+	}, [theme]);
+
+	const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
+
+	// Auto-save: any draft change marks "Unsaved changes" immediately, then
+	// debounces a real localStorage write so rapid edits (e.g. dragging)
+	// don't hammer it. The manual Save button still exists for an explicit,
+	// immediate write.
+	useEffect(() => {
+		setSaveStatus("unsaved");
+		const timer = window.setTimeout(() => {
+			setSaveStatus("saving");
+			draftStorage.save({ pageTitle, widgets });
+			setSaveStatus("saved");
+		}, AUTOSAVE_DELAY_MS);
+		return () => window.clearTimeout(timer);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [widgets, pageTitle]);
+
+	// Powers the Cmd/Ctrl+K command palette — every widget type that's
+	// actually wired up, plus the same actions available in the toolbar,
+	// searchable in one place instead of hunting through menus.
+	const commands: Command[] = [
+		...stencilSections.flatMap((section) =>
+			section.items
+				.filter((item) => item.widgetType)
+				.map((item) => ({
+					id: `add-${item.key}`,
+					label: `Add ${item.label}`,
+					group: "Insert",
+					action: () => handleAddWidget(item),
+				}))
+		),
+		{ id: "undo", label: "Undo", group: "Edit", action: () => history.undo() },
+		{ id: "redo", label: "Redo", group: "Edit", action: () => history.redo() },
+		{
+			id: "delete-selected",
+			label: "Delete selected widget(s)",
+			group: "Edit",
+			action: handleDeleteSelected,
+		},
+		{ id: "save", label: "Save draft", group: "File", action: handleSave },
+		{ id: "publish", label: "Publish", group: "File", action: handlePublish },
+		{
+			id: "preview",
+			label: previewMode ? "Exit preview" : "Preview published version",
+			group: "View",
+			action: () => (previewMode ? exitPreview() : enterPreview()),
+		},
+		{ id: "present", label: "Enter presentation mode", group: "View", action: enterPresentation },
+		{
+			id: "toggle-stencil",
+			label: stencilOpen ? "Hide Stencil panel" : "Show Stencil panel",
+			group: "View",
+			action: () => setStencilOpen((v) => !v),
+		},
+		{
+			id: "toggle-properties",
+			label: propertiesOpen ? "Hide Properties panel" : "Show Properties panel",
+			group: "View",
+			action: () => setPropertiesOpen((v) => !v),
+		},
+		{ id: "zoom-in", label: "Zoom in", group: "View", action: zoomIn },
+		{ id: "zoom-out", label: "Zoom out", group: "View", action: zoomOut },
+	];
+
+	const handleSelect = (id: string, additive: boolean) => {
+		setSelectedIds((current) => {
+			if (!additive) return new Set([id]);
+			const next = new Set(current);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	};
+
+	// Keyboard shortcuts: Cmd/Ctrl+K opens the command palette (works even
+	// while typing, matching the usual convention for this shortcut).
+	// Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Delete/Backspace
+	// removes selected widgets, Escape closes the palette if open, else exits
+	// presentation/preview if active, else clears selection.
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const mod = e.metaKey || e.ctrlKey;
+
+			if (mod && e.key.toLowerCase() === "k") {
+				e.preventDefault();
+				setCommandPaletteOpen((v) => !v);
+				return;
+			}
+			if (e.key === "Escape" && commandPaletteOpen) {
+				setCommandPaletteOpen(false);
+				return;
+			}
+
+			if (isTypingTarget(e.target)) return;
+
+			if (mod && e.key.toLowerCase() === "z") {
+				e.preventDefault();
+				if (e.shiftKey) history.redo();
+				else history.undo();
+				return;
+			}
+			if (mod && e.key.toLowerCase() === "y") {
+				e.preventDefault();
+				history.redo();
+				return;
+			}
+			if (e.key === "Delete" || e.key === "Backspace") {
+				if (selectedIds.size > 0) {
+					e.preventDefault();
+					handleDeleteSelected();
+				}
+			} else if (e.key === "Escape") {
+				if (presentationMode) exitPresentation();
+				else if (previewMode) exitPreview();
+				else setSelectedIds(new Set());
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedIds, presentationMode, previewMode, widgets, commandPaletteOpen]);
+
+	const displayedWidgets = previewMode && publishedWidgets ? publishedWidgets : widgets;
+	const readOnly = previewMode || presentationMode;
+
+	const selectedWidget =
+		!readOnly && selectedIds.size === 1 ? (widgets.find((w) => w.id === [...selectedIds][0]) ?? null) : null;
 
 	return (
-		<PortalProvider initialMode="live">
-			<div className="portal-builder">
-				<BuilderHeader title={pageTitle} onTitleChange={setPageTitle} published={false} />
-				<div className="portal-builder__body">
-					<StencilPanel onAddWidget={handleAddWidget} />
-					<PortalCanvas
-						widgets={widgets}
-						selectedId={selectedId}
-						onSelect={setSelectedId}
-						onDelete={handleDeleteWidget}
-						onDropWidgetKey={handleAddWidgetByKey}
-						onMoveWidget={handleMoveWidget}
-						onResizeWidget={handleResizeWidget}
-					/>
-					<PropertiesPanel selected={selectedWidget} onUpdate={handleUpdateWidget} />
+		<div
+			className={[
+				"portal-builder",
+				presentationMode ? "portal-builder--presentation" : "",
+				previewMode ? "portal-builder--preview" : "",
+			]
+				.filter(Boolean)
+				.join(" ")}
+		>
+			{!presentationMode && (
+				<BuilderHeader
+					title={pageTitle}
+					onTitleChange={setPageTitle}
+					published={published}
+					stencilOpen={stencilOpen}
+					onToggleStencil={() => setStencilOpen((v) => !v)}
+					propertiesOpen={propertiesOpen}
+					onToggleProperties={() => setPropertiesOpen((v) => !v)}
+					onPresent={enterPresentation}
+					onPreview={previewMode ? exitPreview : enterPreview}
+					previewMode={previewMode}
+					onSave={handleSave}
+					onPublish={handlePublish}
+					onUndo={history.undo}
+					onRedo={history.redo}
+					canUndo={history.canUndo}
+					canRedo={history.canRedo}
+					zoom={zoom}
+					onZoomIn={zoomIn}
+					onZoomOut={zoomOut}
+					onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+					theme={theme}
+					onToggleTheme={toggleTheme}
+					saveStatus={saveStatus}
+					deviceMode={deviceMode}
+					onDeviceModeChange={setDeviceMode}
+				/>
+			)}
+			{previewMode && (
+				<div className="preview-banner">
+					<Icon name="expand" size={13} /> Viewing the published version — this reflects your last Publish, not
+					unsaved edits.
 				</div>
-				{toast && <div className="toast">{toast}</div>}
+			)}
+			<div className="portal-builder__body">
+				<StencilPanel open={stencilOpen && !readOnly} onAddWidget={handleAddWidget} />
+				<PortalCanvas
+					widgets={displayedWidgets}
+					selectedIds={selectedIds}
+					onSelect={handleSelect}
+					onDelete={handleDeleteWidget}
+					onDuplicate={handleDuplicateWidget}
+					onDropWidgetKey={handleAddWidgetByKey}
+					onMoveWidget={handleMoveWidget}
+					onResizeWidget={handleResizeWidget}
+					readOnly={readOnly}
+					zoom={zoom}
+					deviceWidth={deviceWidths[deviceMode]}
+				/>
+				<PropertiesPanel open={propertiesOpen && !readOnly} selected={selectedWidget} onUpdate={handleUpdateWidget} />
 			</div>
-		</PortalProvider>
+			{presentationMode && (
+				<button type="button" className="presentation-exit" onClick={exitPresentation}>
+					<Icon name="collapse" size={14} /> Exit presentation (Esc)
+				</button>
+			)}
+			{toast && <div className="toast">{toast}</div>}
+			{commandPaletteOpen && <CommandPalette commands={commands} onClose={() => setCommandPaletteOpen(false)} />}
+		</div>
 	);
 }

@@ -12,14 +12,16 @@ const alertSeverities: AlertSeverity[] = ["info", "success", "warning", "danger"
  * there wouldn't change anything visible.
  */
 export function PropertiesPanel({
+	open,
 	selected,
 	onUpdate,
 }: {
+	open: boolean;
 	selected: WidgetConfig | null;
 	onUpdate: (id: string, patch: WidgetPatch) => void;
 }) {
 	return (
-		<aside className="properties-panel">
+		<aside className={open ? "properties-panel" : "properties-panel properties-panel--collapsed"}>
 			<div className="properties-panel__header">Properties</div>
 			<div className="properties-panel__scroll">
 				{!selected && <p className="properties-panel__empty">Select a widget to edit its properties.</p>}

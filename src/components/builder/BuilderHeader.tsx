@@ -1,14 +1,62 @@
 import { useState } from "react";
 import { Icon } from "../icons/Icon";
+import type { DeviceMode } from "./deviceModes";
+
+export type SaveStatus = "saved" | "saving" | "unsaved";
+export type Theme = "light" | "dark";
 
 export function BuilderHeader({
 	title,
 	onTitleChange,
 	published,
+	stencilOpen,
+	onToggleStencil,
+	propertiesOpen,
+	onToggleProperties,
+	onPresent,
+	onPreview,
+	previewMode,
+	onSave,
+	onPublish,
+	onUndo,
+	onRedo,
+	canUndo,
+	canRedo,
+	zoom,
+	onZoomIn,
+	onZoomOut,
+	onOpenCommandPalette,
+	theme,
+	onToggleTheme,
+	saveStatus,
+	deviceMode,
+	onDeviceModeChange,
 }: {
 	title: string;
 	onTitleChange: (title: string) => void;
 	published: boolean;
+	stencilOpen: boolean;
+	onToggleStencil: () => void;
+	propertiesOpen: boolean;
+	onToggleProperties: () => void;
+	onPresent: () => void;
+	onPreview: () => void;
+	previewMode: boolean;
+	onSave: () => void;
+	onPublish: () => void;
+	onUndo: () => void;
+	onRedo: () => void;
+	canUndo: boolean;
+	canRedo: boolean;
+	zoom: number;
+	onZoomIn: () => void;
+	onZoomOut: () => void;
+	onOpenCommandPalette: () => void;
+	theme: Theme;
+	onToggleTheme: () => void;
+	saveStatus: SaveStatus;
+	deviceMode: DeviceMode;
+	onDeviceModeChange: (mode: DeviceMode) => void;
 }) {
 	const [editing, setEditing] = useState(false);
 
@@ -34,55 +82,96 @@ export function BuilderHeader({
 					</button>
 				)}
 
+				<span className={`save-status save-status--${saveStatus}`}>
+					{saveStatus === "saving" && "Saving…"}
+					{saveStatus === "saved" && (
+						<>
+							<Icon name="check" size={11} /> All changes saved
+						</>
+					)}
+					{saveStatus === "unsaved" && "Unsaved changes"}
+				</span>
+
 				<div className="builder-header__spacer" />
 
 				<span className={`status-badge ${published ? "status-badge--published" : "status-badge--draft"}`}>
 					{published ? "Published" : "Not published"}
 				</span>
+				<button
+					type="button"
+					className="icon-button"
+					aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+					onClick={onToggleTheme}
+				>
+					<Icon name={theme === "light" ? "moon" : "sun"} size={14} />
+				</button>
 				<button type="button" className="icon-button" aria-label="More options">
 					⋮
 				</button>
 				<button type="button" className="btn btn--outline">
 					Share
 				</button>
-				<button type="button" className="btn btn--outline-primary">
-					Preview
+				<button type="button" className="btn btn--outline-primary" onClick={onPresent}>
+					<Icon name="expand" size={13} /> Present
+				</button>
+				<button
+					type="button"
+					className={previewMode ? "btn btn--primary" : "btn btn--outline-primary"}
+					onClick={onPreview}
+					title={published ? "View the published version" : "Nothing published yet"}
+				>
+					{previewMode ? "Editing" : "Preview"}
 				</button>
 				<button type="button" className="btn btn--outline-primary">
 					Version history
 				</button>
-				<button type="button" className="btn btn--outline-primary">
+				<button type="button" className="btn btn--outline-primary" onClick={onPublish}>
 					Publish
 				</button>
-				<button type="button" className="btn btn--outline-primary">
+				<button type="button" className="btn btn--outline-primary" onClick={onSave}>
 					Save
 				</button>
 			</div>
 
 			<div className="builder-header__row builder-header__row--toolbar">
+				<button type="button" className="link-btn" onClick={onToggleStencil}>
+					{stencilOpen ? "Hide Stencil" : "Show Stencil"}
+				</button>
 				<button type="button" className="btn btn--primary btn--sm">
 					Page <Icon name="chevron-down" size={14} />
 				</button>
-				<div className="builder-header__spacer" />
-				<select className="select-sm" defaultValue="responsive">
-					<option value="responsive">Responsive</option>
-					<option value="fixed">Fixed</option>
-				</select>
-				<button type="button" className="icon-button" aria-label="Zoom in">
-					⊕
+				<button type="button" className="command-trigger" onClick={onOpenCommandPalette}>
+					<Icon name="query" size={13} /> Quick actions <kbd>⌘K</kbd>
 				</button>
-				<button type="button" className="icon-button" aria-label="Zoom out">
+				<div className="builder-header__spacer" />
+				<select
+					className="select-sm"
+					value={deviceMode}
+					onChange={(e) => onDeviceModeChange(e.target.value as DeviceMode)}
+				>
+					<option value="desktop">Desktop</option>
+					<option value="tablet">Tablet (768px)</option>
+					<option value="mobile">Mobile (390px)</option>
+				</select>
+				<button type="button" className="icon-button" aria-label="Zoom out" onClick={onZoomOut} disabled={zoom <= 0.5}>
 					⊖
 				</button>
-				<button type="button" className="icon-button" aria-label="Undo">
+				<span className="zoom-readout">{Math.round(zoom * 100)}%</span>
+				<button type="button" className="icon-button" aria-label="Zoom in" onClick={onZoomIn} disabled={zoom >= 1.5}>
+					⊕
+				</button>
+				<button type="button" className="icon-button" aria-label="Undo" onClick={onUndo} disabled={!canUndo}>
 					↶
 				</button>
-				<button type="button" className="icon-button" aria-label="Redo" disabled>
+				<button type="button" className="icon-button" aria-label="Redo" onClick={onRedo} disabled={!canRedo}>
 					↷
 				</button>
 				<div className="builder-header__spacer" />
 				<button type="button" className="btn btn--primary btn--sm">
 					<Icon name="plus" size={14} /> Add page
+				</button>
+				<button type="button" className="link-btn" onClick={onToggleProperties}>
+					{propertiesOpen ? "Hide Properties" : "Show Properties"}
 				</button>
 			</div>
 		</div>

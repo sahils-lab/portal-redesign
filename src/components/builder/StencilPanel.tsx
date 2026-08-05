@@ -1,9 +1,18 @@
 import { stencilSections, type StencilItem } from "./stencilConfig";
 import { Icon } from "../icons/Icon";
 
-export function StencilPanel({ onAddWidget }: { onAddWidget: (item: StencilItem) => void }) {
+export function StencilPanel({
+	open,
+	onAddWidget,
+}: {
+	open: boolean;
+	onAddWidget: (item: StencilItem) => void;
+}) {
+	// Stays mounted when closed (width collapses to 0 via CSS) rather than
+	// unmounting — this is a flex layout, but unmounting still risks reflow/
+	// animation glitches from a child disappearing mid-transition.
 	return (
-		<aside className="stencil-panel">
+		<aside className={open ? "stencil-panel" : "stencil-panel stencil-panel--collapsed"}>
 			<div className="stencil-panel__header">Stencil</div>
 			<div className="stencil-panel__scroll">
 				{stencilSections.map((section) => (
