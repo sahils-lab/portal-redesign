@@ -59,7 +59,3 @@ that's actually useful, and what was removed/fixed because it wasn't. See
   unmount-based hide; panels now stay mounted and collapse their own width.
 - **Plain-text loading state** — "Loading…" caused a layout jump when real
   content swapped in. Removed for shape-matched skeleton bars.
-- **Dark mode** — added a theme toggle with a `data-theme="dark"` token
-  override, then pulled it back out entirely (toggle button, theme state,
-  the dark token overrides, the two theme-only icons). Wasn't earning its
-  keep as a feature for this prototype, even after fixing its elevation bug.
