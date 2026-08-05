@@ -127,17 +127,8 @@ reviewer would actually try clicking.
     local component state (set on `dragstart`), read during `dragover`
     instead of relying on `getData()` too early in the drag lifecycle.
 
-## Dark mode, auto-save, device preview
+## Auto-save and device preview
 
-- **Dark mode** — a theme toggle (sun/moon icon) in the header, backed by a
-  `data-theme="dark"` override in `design/tokens.css` that redefines the
-  surface/neutral color scale only (primary/danger/success/warning read
-  fine unchanged on a dark background). Persisted to `localStorage`. This
-  required going back through `App.css` and replacing every literal
-  `background: #fff` with `var(--color-surface)` — themeable color has to
-  be designed in from the tokens up, it doesn't work as a bolt-on after the
-  fact, which is worth knowing given the real Portal doesn't have a
-  dark-mode story at all yet.
 - **Auto-save with a live status indicator** — every draft edit shows
   "Unsaved changes" immediately, then debounces (1.2s of inactivity) into
   an actual `localStorage` write and flips to "All changes saved" — the

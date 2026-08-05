@@ -22,12 +22,6 @@
 
 	/* Semantic colors */
 	--color-surface: #fff;
-	/* Elevated surfaces (widget cards, dropdowns, popovers, the command
-	   palette). Equal to --color-surface in light mode, where a drop shadow
-	   is enough to separate a white card from a white page — overridden to a
-	   visibly lighter tone in dark mode, where a black shadow barely reads
-	   against an already-dark page and elevation has to come from color. */
-	--color-surface-raised: var(--color-surface);
 	--color-primary: #3548ff;
 	--color-primary-50: #eef0ff;
 	--color-primary-100: #dbe0ff;
@@ -64,47 +58,6 @@
 	--radius-md: 10px;
 	--radius-lg: 14px;
 	--radius-full: 999px;
-}
-
-/*
- * Dark theme — toggled by setting data-theme="dark" on <html> (see App.tsx).
- *
- * The first pass at this got the elevation order backwards: --color-surface
- * (used by both the page/canvas AND widget cards) was DARKER than
- * --color-secondary-50 (used by the Stencil panel and canvas hover states),
- * so cards read as sunken holes instead of raised surfaces, and the light
- * mode's `box-shadow: rgba(0,0,0,…)` card separation is close to invisible
- * against an already-dark background. Fixed by treating --color-surface as
- * the base/page tone and giving elevated surfaces their own, visibly
- * lighter --color-surface-raised (see :root above) — same fix real design
- * systems use for dark-mode elevation, just done here with two tokens
- * instead of a full elevation scale.
- *
- * Also brightens the colors that get used as TEXT on a dark background
- * (--color-primary, --color-success-600, --color-warning-700) — their light-
- * mode values are tuned for contrast against white and read as muddy/
- * low-contrast on near-black.
- */
-[data-theme="dark"] {
-	--color-surface: #15171c;
-	--color-surface-raised: #23262e;
-
-	--color-primary: #5b70ff;
-	--color-primary-50: #1c2247;
-	--color-primary-100: #2b3468;
-	--color-primary-600: #4a5ef2;
-
-	--color-secondary-50: #1b1e25;
-	--color-secondary-100: #333844;
-	--color-secondary-300: #7d8492;
-	--color-secondary-500: #aab0bb;
-	--color-secondary-900: #eef0f3;
-
-	--color-danger-50: #3a1f22;
-	--color-success-50: #1c2e14;
-	--color-success-600: #6fd05a;
-	--color-warning-50: #332a10;
-	--color-warning-700: #f0b94d;
 }
 
 .text-preset-1 { font-size: var(--text-preset-1); }

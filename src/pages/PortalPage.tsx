@@ -11,7 +11,7 @@ import { Icon } from "../components/icons/Icon";
 import { useWidgetHistory } from "../hooks/useWidgetHistory";
 import { draftStorage, publishedStorage } from "../utils/persistence";
 import { CommandPalette, type Command } from "../components/builder/CommandPalette";
-import type { Theme, SaveStatus } from "../components/builder/BuilderHeader";
+import type { SaveStatus } from "../components/builder/BuilderHeader";
 import { deviceWidths, type DeviceMode } from "../components/builder/deviceModes";
 import type { Page } from "../components/builder/PageMenu";
 
@@ -19,7 +19,6 @@ interface PortalPageDoc extends Page {
 	widgets: WidgetConfig[];
 }
 
-const THEME_KEY = "portal-redesign:theme";
 const AUTOSAVE_DELAY_MS = 1200;
 
 const ZOOM_MIN = 0.5;
@@ -140,7 +139,6 @@ export function PortalPage() {
 	const [dataModeBeforePreview, setDataModeBeforePreview] = useState<typeof dataMode | null>(null);
 	const [zoom, setZoom] = useState(1);
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-	const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(THEME_KEY) as Theme) || "light");
 	const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
 	const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
 
@@ -314,13 +312,6 @@ export function PortalPage() {
 	const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 100) / 100));
 	const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 100) / 100));
 
-	useEffect(() => {
-		document.documentElement.dataset.theme = theme;
-		localStorage.setItem(THEME_KEY, theme);
-	}, [theme]);
-
-	const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
-
 	// Auto-save: any draft change marks "Unsaved changes" immediately, then
 	// debounces a real localStorage write so rapid edits (e.g. dragging)
 	// don't hammer it. The manual Save button still exists for an explicit,
@@ -488,8 +479,6 @@ export function PortalPage() {
 					onZoomIn={zoomIn}
 					onZoomOut={zoomOut}
 					onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-					theme={theme}
-					onToggleTheme={toggleTheme}
 					saveStatus={saveStatus}
 					deviceMode={deviceMode}
 					onDeviceModeChange={setDeviceMode}

@@ -4,7 +4,6 @@ import type { DeviceMode } from "./deviceModes";
 import { PageMenu, type Page } from "./PageMenu";
 
 export type SaveStatus = "saved" | "saving" | "unsaved";
-export type Theme = "light" | "dark";
 
 export function BuilderHeader({
 	title,
@@ -27,8 +26,6 @@ export function BuilderHeader({
 	onZoomIn,
 	onZoomOut,
 	onOpenCommandPalette,
-	theme,
-	onToggleTheme,
 	saveStatus,
 	deviceMode,
 	onDeviceModeChange,
@@ -59,8 +56,6 @@ export function BuilderHeader({
 	onZoomIn: () => void;
 	onZoomOut: () => void;
 	onOpenCommandPalette: () => void;
-	theme: Theme;
-	onToggleTheme: () => void;
 	saveStatus: SaveStatus;
 	deviceMode: DeviceMode;
 	onDeviceModeChange: (mode: DeviceMode) => void;
@@ -110,14 +105,6 @@ export function BuilderHeader({
 				<span className={`status-badge ${published ? "status-badge--published" : "status-badge--draft"}`}>
 					{published ? "Published" : "Not published"}
 				</span>
-				<button
-					type="button"
-					className="icon-button"
-					aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
-					onClick={onToggleTheme}
-				>
-					<Icon name={theme === "light" ? "moon" : "sun"} size={14} />
-				</button>
 				<button type="button" className="icon-button" aria-label="More options">
 					⋮
 				</button>

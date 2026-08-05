@@ -28,8 +28,6 @@ that's actually useful, and what was removed/fixed because it wasn't. See
 - Smart alignment guides while dragging (Figma/Tableau-style snap lines)
 - Presentation / fullscreen mode
 - Device-width preview (Desktop / Tablet / Mobile)
-- Dark mode, with a real elevation system (cards visibly raised above the
-  canvas, not just an inverted color scheme)
 - Autosave with a live "Saving… / All changes saved" status indicator
 
 **Tableau-inspired dashboard behavior**
@@ -48,9 +46,9 @@ that's actually useful, and what was removed/fixed because it wasn't. See
 ## Removed / fixed — wasn't useful as it was
 
 - **Decorative buttons that did nothing** — Save, Publish, Preview, Undo,
-  Redo, Present, zoom +/-, theme toggle, device dropdown, Page dropdown,
-  and Add Page all existed in the UI from the start but had no handler.
-  Removed the fake affordance, replaced with real behavior for every one.
+  Redo, Present, zoom +/-, device dropdown, Page dropdown, and Add Page all
+  existed in the UI from the start but had no handler. Removed the fake
+  affordance, replaced with real behavior for every one.
 - **Broken drag tracking** — the original approach read the dragged
   widget's id via `dataTransfer.getData()` during `dragover`, which the
   HTML5 spec makes unreadable at that point in every browser (silently
@@ -59,10 +57,9 @@ that's actually useful, and what was removed/fixed because it wasn't. See
   grid unmounted a whole child when Stencil/Properties was toggled off,
   which threw off track assignment and crushed the canvas. Removed the
   unmount-based hide; panels now stay mounted and collapse their own width.
-- **Inverted dark-mode elevation** — the first dark theme pass gave widget
-  cards a *darker* background than the canvas around them, so cards read
-  as sunken holes instead of raised surfaces, and the light-mode shadow
-  that normally separates them is invisible on a dark background. Removed
-  the flat single-surface-color approach for a proper raised/base split.
 - **Plain-text loading state** — "Loading…" caused a layout jump when real
   content swapped in. Removed for shape-matched skeleton bars.
+- **Dark mode** — added a theme toggle with a `data-theme="dark"` token
+  override, then pulled it back out entirely (toggle button, theme state,
+  the dark token overrides, the two theme-only icons). Wasn't earning its
+  keep as a feature for this prototype, even after fixing its elevation bug.

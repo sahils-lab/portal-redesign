@@ -29,8 +29,6 @@ export type IconName =
 	| "expand"
 	| "collapse"
 	| "close"
-	| "sun"
-	| "moon"
 	| "check";
 
 const paths: Record<IconName, string> = {
@@ -58,8 +56,6 @@ const paths: Record<IconName, string> = {
 	expand: "M4 8V4h4 M16 12v4h-4 M4 4l5 5 M16 16l-5-5",
 	collapse: "M8 4v4H4 M12 16v-4h4 M4 4l5 5 M16 16l-5-5",
 	close: "M5 5l10 10 M15 5L5 15",
-	sun: "M10 6a4 4 0 100 8 4 4 0 000-8z M10 2v1.5 M10 16.5V18 M4.2 4.2l1.1 1.1 M14.7 14.7l1.1 1.1 M2 10h1.5 M16.5 10H18 M4.2 15.8l1.1-1.1 M14.7 5.3l1.1-1.1",
-	moon: "M15.5 12.5a6 6 0 11-8-8 6.5 6.5 0 008 8z",
 	check: "M4 10.5l4 4 8-9",
 };
 
