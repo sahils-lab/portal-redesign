@@ -2,9 +2,9 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import type { DataMode } from "../types/widget";
 
 /**
- * A dashboard-wide cross-filter — Tableau's defining dashboard feature:
- * click a data point in one widget, every other widget that shares that
- * dimension reacts. Scoped to `{ dimension, value }` (not a widget id) on
+ * A dashboard-wide cross-filter: click a data point in one widget, every
+ * other widget that shares that dimension reacts. Scoped to
+ * `{ dimension, value }` (not a widget id) on
  * purpose — the real Portal codebase had a documented bug
  * (portal-widget-filter-column-identity-mismatch) where widget-id space and
  * worksheet-id space got conflated. Filtering by dimension *value* sidesteps

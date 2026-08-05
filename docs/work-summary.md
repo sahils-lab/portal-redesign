@@ -25,12 +25,12 @@ that's actually useful, and what was removed/fixed because it wasn't. See
 - Command palette (Cmd/Ctrl+K) for every widget type and action
 - Functional zoom, with drag/resize math that stays correct at any zoom
   level
-- Smart alignment guides while dragging (Figma/Tableau-style snap lines)
+- Smart alignment guides while dragging (snap lines against other widgets)
 - Presentation / fullscreen mode
 - Device-width preview (Desktop / Tablet / Mobile)
 - Autosave with a live "Saving… / All changes saved" status indicator
 
-**Tableau-inspired dashboard behavior**
+**Additional dashboard behavior**
 - Cross-widget filtering (click a region row, every related widget reacts)
 - Filter shelf showing the active cross-filter as a dismissible chip
 - Per-widget CSV export

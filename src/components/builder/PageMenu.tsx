@@ -8,9 +8,8 @@ export interface Page {
 
 /**
  * The "Page ▾" dropdown was decorative before — a static button that opened
- * nothing. Tableau's core organizing concept for a dashboard is multiple
- * sheets/pages; this is the working version: switch, rename (inline), add,
- * delete (can't delete the last page).
+ * nothing. A dashboard organized as multiple pages needs a real way to
+ * switch, rename (inline), add, and delete them (can't delete the last one).
  */
 export function PageMenu({
 	pages,

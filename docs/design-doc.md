@@ -18,15 +18,14 @@ demonstrate the same fixes at a smaller scale.
 | 5 | Refresh-config merge bugs (old config silently overriding fresh data) | Not yet modeled in this prototype — flagged as a TODO below, since it needs an actual "refresh from source" flow to demonstrate properly |
 | 9 | Heavy `any` usage, especially at the live/published boundary | Every type in `types/widget.ts` is a proper discriminated union; `WidgetRenderer`'s switch is exhaustive (TS `never` check) so a missing case is a compile error, not a silent bug |
 
-## Features beyond the pain-points fix (inspired by Tableau)
+## Features beyond the pain-points fix
 
-Since Tableau is the reference point for what a "good" dashboard builder
-does, several of its defining capabilities were added on top of the
-pain-points fixes above — not present in the real Portal, and not required
-to demonstrate the architecture, but they make the case for *why* the
-consolidated architecture matters (a shared cross-filter concept is only
-safe to build because the live/published and widget-identity confusion from
-pain points #4 and #6 were fixed first):
+Several dashboard capabilities were added on top of the pain-points fixes
+above — not present in the real Portal, and not required to demonstrate the
+architecture, but they make the case for *why* the consolidated architecture
+matters (a shared cross-filter concept is only safe to build because the
+live/published and widget-identity confusion from pain points #4 and #6
+were fixed first):
 
 - **Cross-widget filtering** — click a region row in `MetricWidget`, every
   widget that understands the `region` dimension reacts (`KPIWidget` narrows
@@ -36,18 +35,17 @@ pain points #4 and #6 were fixed first):
   (`portal-widget-filter-column-identity-mismatch.md`) where widget-ID space
   and worksheet-ID space got conflated.
 - **Filter shelf** — the active cross-filter shows as a dismissible chip in
-  the canvas toolbar (Tableau's "filter shelf"), not just on whichever
-  widget happens to be reacting to it — makes an active filter discoverable
-  even if you didn't set it yourself.
+  the canvas toolbar, not just on whichever widget happens to be reacting to
+  it — makes an active filter discoverable even if you didn't set it
+  yourself.
 - **Widget resizing** — drag the bottom-right corner handle to resize a
   widget on the grid, alongside the existing drag-to-move. Pointer-event
   based, separate from the stencil/move DnD flow (HTML5 drag-and-drop isn't
   well suited to a sub-element resize gesture).
 - **CSV export per widget** — hover a data widget (KPI/Metric/Report/Recon)
   for a download icon; exports that widget's current data (respecting the
-  live/published toggle and any active cross-filter) as a `.csv`. Tableau's
-  "Download > Crosstab", scaled down — no server round-trip, just a client-
-  side `Blob` download.
+  live/published toggle and any active cross-filter) as a `.csv` — no
+  server round-trip, just a client-side `Blob` download.
 - **Presentation/fullscreen mode** — a "Present" button hides the Stencil/
   Properties panels and builder chrome, requests browser fullscreen, and
   disables editing affordances (resize handle, duplicate/delete, export
@@ -111,8 +109,8 @@ reviewer would actually try clicking.
   they're mixed into that math. Getting this wrong is a classic zoom-bug
   source; it's called out explicitly in `PortalCanvas.tsx` rather than left
   as an implicit assumption.
-- **Smart alignment guides** — Figma/Tableau-style pink snap lines while
-  dragging an existing widget: if the widget being dragged would land with
+- **Smart alignment guides** — pink snap lines while dragging an existing
+  widget: if the widget being dragged would land with
   an edge aligned to another widget's edge, a guide line renders at that
   boundary. Computed in grid-unit space (column/row indices), not pixels —
   both sides of the comparison already came from the same `colWidth` math,
@@ -153,8 +151,8 @@ Two more features, both closing gaps between "looks like a real builder" and
 
 - **Multi-page dashboards** — the "Page ▾" dropdown and "Add page" button in
   the toolbar were pure decoration (static, no click handler) for the entire
-  rest of this prototype; this is Tableau's core "Sheets/Dashboards"
-  organizing concept made real. `PageMenu.tsx` is a self-contained dropdown
+  rest of this prototype; this is the multi-page organizing concept made
+  real. `PageMenu.tsx` is a self-contained dropdown
   (switch / inline rename / add / delete, guarded so the last page can't be
   deleted) driven entirely by props — `PortalPage` owns the actual `pages`
   state (`{ id, name, widgets }[]`) and `activePageId`.
@@ -181,8 +179,8 @@ Two more features, both closing gaps between "looks like a real builder" and
     "don't make people hunt through menus" reasoning as every other
     palette entry.
 - **Hover tooltips on data widgets** — hovering a KPI/Metric/Report/Recon
-  widget reveals a small info popover (Tableau's mark-tooltip pattern,
-  scaled down to widget-level metadata instead of per-data-point) showing
+  widget reveals a small info popover (widget-level metadata rather than
+  per-data-point) showing
   the entity id/dataset, the type-specific dimensions (rows/columns for
   Metric, section count for Report, item count for Recon), and whether it's
   currently reading live or published data. Implemented as one addition to

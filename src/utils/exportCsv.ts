@@ -3,7 +3,7 @@ function escapeCsvCell(cell: string): string {
 	return cell;
 }
 
-/** Tableau-style "Download > Crosstab" — serializes rows straight to a downloaded .csv, no server round-trip needed. */
+/** Serializes rows straight to a downloaded .csv, no server round-trip needed. */
 export function downloadCsv(filename: string, rows: string[][]): void {
 	const csv = rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n");
 	const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });

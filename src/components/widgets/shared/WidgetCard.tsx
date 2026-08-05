@@ -4,9 +4,9 @@ import { Icon } from "../../icons/Icon";
 interface WidgetCardProps {
 	title: string;
 	sourceBadge?: string;
-	/** Present only when the widget has loaded data worth exporting — Tableau's "Download > Crosstab", scaled down to CSV. */
+	/** Present only when the widget has loaded data worth exporting — a one-click "export this widget's data" affordance, scaled down to CSV. */
 	onExport?: () => void;
-	/** Hover-only metadata (data source, aggregation, freshness) — Tableau's mark tooltip, scaled down to a widget-level info popover. */
+	/** Hover-only metadata (data source, aggregation, freshness), shown in a small info popover on hover. */
 	tooltip?: { label: string; value: string }[];
 	children: ReactNode;
 }

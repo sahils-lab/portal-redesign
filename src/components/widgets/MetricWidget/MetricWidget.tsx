@@ -8,10 +8,9 @@ import { downloadCsv } from "../../../utils/exportCsv";
 const DIMENSION = "region";
 
 /**
- * Rows are clickable to drive the dashboard-wide cross-filter (Tableau's
- * signature dashboard behavior) — click a region row, every widget that
- * understands the "region" dimension reacts (see KPIWidget). Click the same
- * row again to clear the filter.
+ * Rows are clickable to drive the dashboard-wide cross-filter — click a
+ * region row, every widget that understands the "region" dimension reacts
+ * (see KPIWidget). Click the same row again to clear the filter.
  */
 export function MetricWidget({ config }: { config: MetricWidgetConfig }) {
 	const { status, data, error, source, retry } = useWidgetData<MetricData>("metric", config.metricId);

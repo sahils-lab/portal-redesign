@@ -1222,7 +1222,7 @@ button {
 	color: var(--color-danger);
 }
 
-/* ---------- Presentation mode (Tableau-style fullscreen view) ---------- */
+/* ---------- Presentation mode (fullscreen view) ---------- */
 
 .portal-builder--presentation .canvas-cell {
 	cursor: default;

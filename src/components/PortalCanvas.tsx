@@ -35,8 +35,8 @@ interface AlignGuides {
  * Two distinct drag flows share this one drop zone, disambiguated by
  * DataTransfer type: adding a NEW widget from the stencil (copy, shows a
  * ghost preview snapped to the target cell) vs MOVING an existing widget
- * already on the canvas — the latter also computes Figma/Tableau-style
- * alignment guides against other widgets' edges. Resizing (bottom-right
+ * already on the canvas — the latter also computes smart alignment guides
+ * against other widgets' edges. Resizing (bottom-right
  * handle) is a separate pointer-drag interaction, not HTML5 DnD.
  */
 export function PortalCanvas({
@@ -107,7 +107,7 @@ export function PortalCanvas({
 		return { x: col, y: row };
 	};
 
-	/** Figma/Tableau-style snap lines: highlight when the dragged widget's edges line up with another widget's edges, compared in grid-unit space (column/row indices) rather than pixels, since both sides of the comparison came from the same colWidth math anyway. */
+	/** Smart snap lines: highlight when the dragged widget's edges line up with another widget's edges, compared in grid-unit space (column/row indices) rather than pixels, since both sides of the comparison came from the same colWidth math anyway. */
 	function computeAlignGuides(ghost: { x: number; y: number; w: number; h: number }, excludeId: string): AlignGuides {
 		const vertical = new Set<number>();
 		const horizontal = new Set<number>();
