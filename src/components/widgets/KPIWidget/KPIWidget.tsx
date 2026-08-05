@@ -3,6 +3,7 @@ import { useWidgetData } from "../../../hooks/useWidgetData";
 import { usePortalContext } from "../../../context/PortalContext";
 import { WidgetCard } from "../shared/WidgetCard";
 import { WidgetLoading, WidgetError } from "../shared/WidgetStatus";
+import { downloadCsv } from "../../../utils/exportCsv";
 
 const DIMENSION = "region";
 
@@ -21,8 +22,20 @@ export function KPIWidget({ config }: { config: KPIWidgetConfig }) {
 		crossFilter?.dimension === DIMENSION && data?.byRegion ? data.byRegion[crossFilter.value] : undefined;
 	const displayValue = filteredValue ?? data?.value;
 
+	const handleExport = () => {
+		if (!data) return;
+		downloadCsv(config.title, [
+			["metric", "value", "previousValue", "currency"],
+			[config.title, String(data.value), String(data.previousValue ?? ""), data.currency ?? ""],
+		]);
+	};
+
 	return (
-		<WidgetCard title={config.title} sourceBadge={source === "published" ? "Published" : undefined}>
+		<WidgetCard
+			title={config.title}
+			sourceBadge={source === "published" ? "Published" : undefined}
+			onExport={status === "success" && data ? handleExport : undefined}
+		>
 			{status === "loading" && <WidgetLoading />}
 			{status === "error" && <WidgetError message={error ?? "Something went wrong"} onRetry={retry} />}
 			{status === "success" && data && displayValue !== undefined && (

@@ -24,7 +24,14 @@ export type IconName =
 	| "alert"
 	| "chevron-down"
 	| "plus"
-	| "trash";
+	| "trash"
+	| "download"
+	| "expand"
+	| "collapse"
+	| "close"
+	| "sun"
+	| "moon"
+	| "check";
 
 const paths: Record<IconName, string> = {
 	container: "M3 4h14v12H3z M3 8h14",
@@ -47,6 +54,13 @@ const paths: Record<IconName, string> = {
 	"chevron-down": "M5 7.5l5 5 5-5",
 	plus: "M10 4v12 M4 10h12",
 	trash: "M4 6h12 M8 6V4h4v2 M6 6l1 10h6l1-10",
+	download: "M10 3v9 M6.5 8.5L10 12l3.5-3.5 M4 15h12",
+	expand: "M4 8V4h4 M16 12v4h-4 M4 4l5 5 M16 16l-5-5",
+	collapse: "M8 4v4H4 M12 16v-4h4 M4 4l5 5 M16 16l-5-5",
+	close: "M5 5l10 10 M15 5L5 15",
+	sun: "M10 6a4 4 0 100 8 4 4 0 000-8z M10 2v1.5 M10 16.5V18 M4.2 4.2l1.1 1.1 M14.7 14.7l1.1 1.1 M2 10h1.5 M16.5 10H18 M4.2 15.8l1.1-1.1 M14.7 5.3l1.1-1.1",
+	moon: "M15.5 12.5a6 6 0 11-8-8 6.5 6.5 0 008 8z",
+	check: "M4 10.5l4 4 8-9",
 };
 
 export function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {

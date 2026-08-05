@@ -3,6 +3,7 @@ import { useWidgetData } from "../../../hooks/useWidgetData";
 import { usePortalContext } from "../../../context/PortalContext";
 import { WidgetCard } from "../shared/WidgetCard";
 import { WidgetLoading, WidgetError } from "../shared/WidgetStatus";
+import { downloadCsv } from "../../../utils/exportCsv";
 
 const DIMENSION = "region";
 
@@ -16,8 +17,19 @@ export function MetricWidget({ config }: { config: MetricWidgetConfig }) {
 	const { status, data, error, source, retry } = useWidgetData<MetricData>("metric", config.metricId);
 	const { crossFilter, setCrossFilter } = usePortalContext();
 
+	const handleExport = () => {
+		if (!data) return;
+		const header = ["region", ...data.columns];
+		const rows = data.rows.map((row) => [row.label, ...data.columns.map((col) => String(row.values[col] ?? ""))]);
+		downloadCsv(config.title, [header, ...rows]);
+	};
+
 	return (
-		<WidgetCard title={config.title} sourceBadge={source === "published" ? "Published" : undefined}>
+		<WidgetCard
+			title={config.title}
+			sourceBadge={source === "published" ? "Published" : undefined}
+			onExport={status === "success" && data ? handleExport : undefined}
+		>
 			{status === "loading" && <WidgetLoading />}
 			{status === "error" && <WidgetError message={error ?? "Something went wrong"} onRetry={retry} />}
 			{status === "success" && data && (

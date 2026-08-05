@@ -2,6 +2,7 @@ import type { ReconWidgetConfig, ReconData } from "../../../types/widget";
 import { useWidgetData } from "../../../hooks/useWidgetData";
 import { WidgetCard } from "../shared/WidgetCard";
 import { WidgetLoading, WidgetError } from "../shared/WidgetStatus";
+import { downloadCsv } from "../../../utils/exportCsv";
 
 /**
  * In the real Portal codebase, Recon was the one widget type that didn't
@@ -13,8 +14,20 @@ import { WidgetLoading, WidgetError } from "../shared/WidgetStatus";
 export function ReconWidget({ config }: { config: ReconWidgetConfig }) {
 	const { status, data, error, source, retry } = useWidgetData<ReconData>("recon", config.reconId);
 
+	const handleExport = () => {
+		if (!data) return;
+		downloadCsv(config.title, [
+			["matched", "unmatched", "total"],
+			[String(data.matched), String(data.unmatched), String(data.total)],
+		]);
+	};
+
 	return (
-		<WidgetCard title={config.title} sourceBadge={source === "published" ? "Published" : undefined}>
+		<WidgetCard
+			title={config.title}
+			sourceBadge={source === "published" ? "Published" : undefined}
+			onExport={status === "success" && data ? handleExport : undefined}
+		>
 			{status === "loading" && <WidgetLoading />}
 			{status === "error" && <WidgetError message={error ?? "Something went wrong"} onRetry={retry} />}
 			{status === "success" && data && (
