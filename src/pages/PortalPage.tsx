@@ -13,6 +13,11 @@ import { draftStorage, publishedStorage } from "../utils/persistence";
 import { CommandPalette, type Command } from "../components/builder/CommandPalette";
 import type { Theme, SaveStatus } from "../components/builder/BuilderHeader";
 import { deviceWidths, type DeviceMode } from "../components/builder/deviceModes";
+import type { Page } from "../components/builder/PageMenu";
+
+interface PortalPageDoc extends Page {
+	widgets: WidgetConfig[];
+}
 
 const THEME_KEY = "portal-redesign:theme";
 const AUTOSAVE_DELAY_MS = 1200;
@@ -99,8 +104,20 @@ export function PortalPage() {
 	const { dataMode, setDataMode } = usePortalContext();
 
 	const [pageTitle, setPageTitle] = useState("Test2");
+	const [pages, setPages] = useState<PortalPageDoc[]>([
+		{ id: "page-1", name: "Page 1", widgets: initialWidgets },
+	]);
+	const [activePageId, setActivePageId] = useState("page-1");
 	const history = useWidgetHistory(initialWidgets);
 	const widgets = history.widgets;
+
+	// Single history instance is reused across pages via `history.replace()` on
+	// switch — undo/redo history resets per page-switch (accepted tradeoff,
+	// documented in the design doc) rather than keeping N independent stacks.
+	useEffect(() => {
+		setPages((prev) => prev.map((p) => (p.id === activePageId ? { ...p, widgets } : p)));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [widgets]);
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [toast, setToast] = useState<string | null>(null);
@@ -115,8 +132,10 @@ export function PortalPage() {
 	// (portal-published-snapshot-stale-hide-unshared-pages-flag.md), where a
 	// flag was read from a stale published snapshot by accident; here the
 	// snapshot-vs-draft split is explicit and intentional, not accidental.
-	const [published, setPublished] = useState(false);
-	const [publishedWidgets, setPublishedWidgets] = useState<WidgetConfig[] | null>(null);
+	// Keyed by page id — publishing one page doesn't touch another page's last-published snapshot.
+	const [publishedPages, setPublishedPages] = useState<Record<string, WidgetConfig[]>>({});
+	const publishedWidgets = publishedPages[activePageId] ?? null;
+	const published = publishedWidgets !== null;
 	const [previewMode, setPreviewMode] = useState(false);
 	const [dataModeBeforePreview, setDataModeBeforePreview] = useState<typeof dataMode | null>(null);
 	const [zoom, setZoom] = useState(1);
@@ -125,17 +144,19 @@ export function PortalPage() {
 	const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
 	const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
 
-	// Load persisted draft + published snapshot once on mount.
+	// Load persisted draft + published snapshots once on mount.
 	useEffect(() => {
 		const draft = draftStorage.load();
-		if (draft) {
-			history.replace(draft.widgets);
+		if (draft && draft.pages.length > 0) {
 			setPageTitle(draft.pageTitle);
+			setPages(draft.pages);
+			const active = draft.pages.find((p) => p.id === draft.activePageId) ?? draft.pages[0];
+			history.replace(active.widgets);
+			setActivePageId(active.id);
 		}
 		const pub = publishedStorage.load();
 		if (pub) {
-			setPublishedWidgets(pub.widgets);
-			setPublished(true);
+			setPublishedPages(pub.pages);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -205,17 +226,51 @@ export function PortalPage() {
 	};
 
 	const handleSave = () => {
-		draftStorage.save({ pageTitle, widgets });
+		draftStorage.save({ pageTitle, pages, activePageId });
 		setSaveStatus("saved");
 		showToast("Draft saved");
 	};
 
 	const handlePublish = () => {
 		const snapshot = JSON.parse(JSON.stringify(widgets)) as WidgetConfig[];
-		setPublishedWidgets(snapshot);
-		setPublished(true);
-		publishedStorage.save({ pageTitle, widgets: snapshot });
+		const nextPublishedPages = { ...publishedPages, [activePageId]: snapshot };
+		setPublishedPages(nextPublishedPages);
+		publishedStorage.save({ pages: nextPublishedPages });
 		showToast("Published successfully");
+	};
+
+	const switchToPage = (id: string) => {
+		if (id === activePageId) return;
+		const target = pages.find((p) => p.id === id);
+		if (!target) return;
+		history.replace(target.widgets);
+		setActivePageId(id);
+		setSelectedIds(new Set());
+	};
+
+	const addPage = () => {
+		const id = `page-${Date.now()}`;
+		const newPage: PortalPageDoc = { id, name: `Page ${pages.length + 1}`, widgets: [] };
+		setPages((prev) => [...prev, newPage]);
+		history.replace([]);
+		setActivePageId(id);
+		setSelectedIds(new Set());
+	};
+
+	const renamePage = (id: string, name: string) => {
+		setPages((prev) => prev.map((p) => (p.id === id ? { ...p, name } : p)));
+	};
+
+	const deletePage = (id: string) => {
+		if (pages.length <= 1) return;
+		const next = pages.filter((p) => p.id !== id);
+		setPages(next);
+		if (id === activePageId) {
+			const fallback = next[0];
+			history.replace(fallback.widgets);
+			setActivePageId(fallback.id);
+			setSelectedIds(new Set());
+		}
 	};
 
 	const enterPreview = () => {
@@ -274,12 +329,12 @@ export function PortalPage() {
 		setSaveStatus("unsaved");
 		const timer = window.setTimeout(() => {
 			setSaveStatus("saving");
-			draftStorage.save({ pageTitle, widgets });
+			draftStorage.save({ pageTitle, pages, activePageId });
 			setSaveStatus("saved");
 		}, AUTOSAVE_DELAY_MS);
 		return () => window.clearTimeout(timer);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [widgets, pageTitle]);
+	}, [widgets, pageTitle, pages, activePageId]);
 
 	// Powers the Cmd/Ctrl+K command palette — every widget type that's
 	// actually wired up, plus the same actions available in the toolbar,
@@ -326,6 +381,15 @@ export function PortalPage() {
 		},
 		{ id: "zoom-in", label: "Zoom in", group: "View", action: zoomIn },
 		{ id: "zoom-out", label: "Zoom out", group: "View", action: zoomOut },
+		{ id: "add-page", label: "Add page", group: "Pages", action: addPage },
+		...pages
+			.filter((p) => p.id !== activePageId)
+			.map((p) => ({
+				id: `switch-page-${p.id}`,
+				label: `Go to page: ${p.name}`,
+				group: "Pages",
+				action: () => switchToPage(p.id),
+			})),
 	];
 
 	const handleSelect = (id: string, additive: boolean) => {
@@ -429,6 +493,12 @@ export function PortalPage() {
 					saveStatus={saveStatus}
 					deviceMode={deviceMode}
 					onDeviceModeChange={setDeviceMode}
+					pages={pages}
+					activePageId={activePageId}
+					onSwitchPage={switchToPage}
+					onAddPage={addPage}
+					onRenamePage={renamePage}
+					onDeletePage={deletePage}
 				/>
 			)}
 			{previewMode && (

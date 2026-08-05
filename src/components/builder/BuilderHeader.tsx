@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../icons/Icon";
 import type { DeviceMode } from "./deviceModes";
+import { PageMenu, type Page } from "./PageMenu";
 
 export type SaveStatus = "saved" | "saving" | "unsaved";
 export type Theme = "light" | "dark";
@@ -31,6 +32,12 @@ export function BuilderHeader({
 	saveStatus,
 	deviceMode,
 	onDeviceModeChange,
+	pages,
+	activePageId,
+	onSwitchPage,
+	onAddPage,
+	onRenamePage,
+	onDeletePage,
 }: {
 	title: string;
 	onTitleChange: (title: string) => void;
@@ -57,6 +64,12 @@ export function BuilderHeader({
 	saveStatus: SaveStatus;
 	deviceMode: DeviceMode;
 	onDeviceModeChange: (mode: DeviceMode) => void;
+	pages: Page[];
+	activePageId: string;
+	onSwitchPage: (id: string) => void;
+	onAddPage: () => void;
+	onRenamePage: (id: string, name: string) => void;
+	onDeletePage: (id: string) => void;
 }) {
 	const [editing, setEditing] = useState(false);
 
@@ -137,9 +150,14 @@ export function BuilderHeader({
 				<button type="button" className="link-btn" onClick={onToggleStencil}>
 					{stencilOpen ? "Hide Stencil" : "Show Stencil"}
 				</button>
-				<button type="button" className="btn btn--primary btn--sm">
-					Page <Icon name="chevron-down" size={14} />
-				</button>
+				<PageMenu
+					pages={pages}
+					activePageId={activePageId}
+					onSwitch={onSwitchPage}
+					onAdd={onAddPage}
+					onRename={onRenamePage}
+					onDelete={onDeletePage}
+				/>
 				<button type="button" className="command-trigger" onClick={onOpenCommandPalette}>
 					<Icon name="query" size={13} /> Quick actions <kbd>⌘K</kbd>
 				</button>
@@ -167,7 +185,7 @@ export function BuilderHeader({
 					↷
 				</button>
 				<div className="builder-header__spacer" />
-				<button type="button" className="btn btn--primary btn--sm">
+				<button type="button" className="btn btn--primary btn--sm" onClick={onAddPage}>
 					<Icon name="plus" size={14} /> Add page
 				</button>
 				<button type="button" className="link-btn" onClick={onToggleProperties}>

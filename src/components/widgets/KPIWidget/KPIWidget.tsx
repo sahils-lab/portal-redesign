@@ -35,6 +35,11 @@ export function KPIWidget({ config }: { config: KPIWidgetConfig }) {
 			title={config.title}
 			sourceBadge={source === "published" ? "Published" : undefined}
 			onExport={status === "success" && data ? handleExport : undefined}
+			tooltip={[
+				{ label: "Metric", value: config.metricId },
+				{ label: "Format", value: config.valueFormat },
+				{ label: "Source", value: source === "published" ? "Published snapshot" : "Live" },
+			]}
 		>
 			{status === "loading" && <WidgetLoading />}
 			{status === "error" && <WidgetError message={error ?? "Something went wrong"} onRetry={retry} />}

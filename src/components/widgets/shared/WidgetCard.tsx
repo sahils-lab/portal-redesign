@@ -6,6 +6,8 @@ interface WidgetCardProps {
 	sourceBadge?: string;
 	/** Present only when the widget has loaded data worth exporting — Tableau's "Download > Crosstab", scaled down to CSV. */
 	onExport?: () => void;
+	/** Hover-only metadata (data source, aggregation, freshness) — Tableau's mark tooltip, scaled down to a widget-level info popover. */
+	tooltip?: { label: string; value: string }[];
 	children: ReactNode;
 }
 
@@ -17,13 +19,26 @@ interface WidgetCardProps {
  * widget renders through this one shell, so structural consistency is
  * enforced instead of hoped for.
  */
-export function WidgetCard({ title, sourceBadge, onExport, children }: WidgetCardProps) {
+export function WidgetCard({ title, sourceBadge, onExport, tooltip, children }: WidgetCardProps) {
 	return (
 		<div className="widget-card">
 			<div className="widget-card__header">
 				<span className="widget-card__title">{title}</span>
 				<div className="widget-card__header-actions">
 					{sourceBadge && <span className="widget-card__badge">{sourceBadge}</span>}
+					{tooltip && tooltip.length > 0 && (
+						<span className="widget-card__tooltip-trigger" tabIndex={0} aria-label="Widget details">
+							<Icon name="info" size={13} />
+							<div className="widget-card__tooltip" role="tooltip">
+								{tooltip.map((row) => (
+									<div key={row.label} className="widget-card__tooltip-row">
+										<span className="widget-card__tooltip-label">{row.label}</span>
+										<span className="widget-card__tooltip-value">{row.value}</span>
+									</div>
+								))}
+							</div>
+						</span>
+					)}
 					{onExport && (
 						<button
 							type="button"

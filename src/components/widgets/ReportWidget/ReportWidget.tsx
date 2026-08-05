@@ -21,6 +21,11 @@ export function ReportWidget({ config }: { config: ReportWidgetConfig }) {
 			title={config.title}
 			sourceBadge={source === "published" ? "Published" : undefined}
 			onExport={status === "success" && data ? handleExport : undefined}
+			tooltip={[
+				{ label: "Statement", value: config.statementId },
+				{ label: "Sections", value: data ? String(data.sections.length) : "—" },
+				{ label: "Source", value: source === "published" ? "Published snapshot" : "Live" },
+			]}
 		>
 			{status === "loading" && <WidgetLoading />}
 			{status === "error" && <WidgetError message={error ?? "Something went wrong"} onRetry={retry} />}

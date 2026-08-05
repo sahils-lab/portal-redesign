@@ -155,6 +155,52 @@ reviewer would actually try clicking.
   the real Portal has; the value here is making the limitation visible
   during design instead of only discovering it on an actual phone.
 
+## Multi-page dashboards and widget hover tooltips
+
+Two more features, both closing gaps between "looks like a real builder" and
+"is one":
+
+- **Multi-page dashboards** — the "Page ▾" dropdown and "Add page" button in
+  the toolbar were pure decoration (static, no click handler) for the entire
+  rest of this prototype; this is Tableau's core "Sheets/Dashboards"
+  organizing concept made real. `PageMenu.tsx` is a self-contained dropdown
+  (switch / inline rename / add / delete, guarded so the last page can't be
+  deleted) driven entirely by props — `PortalPage` owns the actual `pages`
+  state (`{ id, name, widgets }[]`) and `activePageId`.
+  - Deliberately **one `useWidgetHistory` instance, reused across pages**,
+    not one stack per page. Switching pages calls `history.replace(target
+    .widgets)` — a non-undoable load, same primitive already used for
+    hydrating a persisted draft on mount — rather than swapping in a
+    different history object. The accepted tradeoff: undo/redo history
+    resets on page switch. Keeping N independent undo stacks alive
+    indefinitely (including for pages you're not looking at) is real
+    complexity for a benefit a demo doesn't need; documenting the tradeoff
+    here is cheaper than building it.
+  - A `useEffect` keyed on `widgets` keeps `pages[activePageId].widgets` in
+    sync with whatever the (single, shared) history is currently holding —
+    the one place page data and live editor state reconcile.
+  - **Publish/Preview are scoped per page**, not global: `publishedPages` is
+    `Record<pageId, WidgetConfig[]>`, so publishing Page 2 doesn't touch
+    Page 1's last-published snapshot, and Preview always reflects the
+    snapshot for whichever page is currently active. `persistence.ts` was
+    restructured to match — `draftStorage` now saves the whole `pages` array
+    plus `activePageId`; `publishedStorage` saves the per-page snapshot map.
+  - Command palette gained matching entries ("Add page", "Go to page: …")
+    so pages are reachable without touching the dropdown at all — same
+    "don't make people hunt through menus" reasoning as every other
+    palette entry.
+- **Hover tooltips on data widgets** — hovering a KPI/Metric/Report/Recon
+  widget reveals a small info popover (Tableau's mark-tooltip pattern,
+  scaled down to widget-level metadata instead of per-data-point) showing
+  the entity id/dataset, the type-specific dimensions (rows/columns for
+  Metric, section count for Report, item count for Recon), and whether it's
+  currently reading live or published data. Implemented as one addition to
+  the shared `WidgetCard` shell (`tooltip?: { label; value }[]` prop,
+  CSS-only show-on-hover/focus so there's no extra state or JS timer) — every
+  widget type opts in by passing its own rows, so the popover content stays
+  type-specific without four different tooltip implementations.
+
+## UI/UX polish
 
 Layered on after the architecture work, purely to make the builder feel
 like a finished product rather than a functional-but-rough demo:
@@ -195,7 +241,10 @@ like a finished product rather than a functional-but-rough demo:
 ```
 App
  └─ PortalProvider (holds dataMode: "live" | "published", crossFilter)
-     └─ PortalPage (useWidgetHistory for undo/redo; save/publish/preview state)
+     └─ PortalPage (pages[] + activePageId; ONE useWidgetHistory instance
+                     reused across pages via history.replace() on switch;
+                     save/publish/preview state, now per-page)
+         ├─ BuilderHeader → PageMenu (switch / add / rename / delete)
          └─ PortalCanvas (renders grid, live/published toggle, filter shelf)
              └─ WidgetRenderer (exhaustive switch on widget.type)
                  ├─ KPIWidget / MetricWidget / ReportWidget / ReconWidget

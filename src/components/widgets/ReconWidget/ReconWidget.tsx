@@ -27,6 +27,11 @@ export function ReconWidget({ config }: { config: ReconWidgetConfig }) {
 			title={config.title}
 			sourceBadge={source === "published" ? "Published" : undefined}
 			onExport={status === "success" && data ? handleExport : undefined}
+			tooltip={[
+				{ label: "Reconciliation", value: config.reconId },
+				{ label: "Total items", value: data ? String(data.total) : "—" },
+				{ label: "Source", value: source === "published" ? "Published snapshot" : "Live" },
+			]}
 		>
 			{status === "loading" && <WidgetLoading />}
 			{status === "error" && <WidgetError message={error ?? "Something went wrong"} onRetry={retry} />}

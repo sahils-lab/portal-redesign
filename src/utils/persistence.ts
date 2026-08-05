@@ -3,24 +3,36 @@ import type { WidgetConfig } from "../types/widget";
 const DRAFT_KEY = "portal-redesign:draft";
 const PUBLISHED_KEY = "portal-redesign:published";
 
-export interface PersistedPage {
-	pageTitle: string;
+export interface PersistedPageDoc {
+	id: string;
+	name: string;
 	widgets: WidgetConfig[];
 }
 
-function load(key: string): PersistedPage | null {
+export interface PersistedDraft {
+	pageTitle: string;
+	pages: PersistedPageDoc[];
+	activePageId: string;
+}
+
+export interface PersistedPublished {
+	/** Snapshots are per-page — publishing one page doesn't touch another's last-published state. */
+	pages: Record<string, WidgetConfig[]>;
+}
+
+function load<T>(key: string): T | null {
 	try {
 		const raw = localStorage.getItem(key);
 		if (!raw) return null;
-		return JSON.parse(raw) as PersistedPage;
+		return JSON.parse(raw) as T;
 	} catch {
 		return null;
 	}
 }
 
-function save(key: string, page: PersistedPage): void {
+function save<T>(key: string, value: T): void {
 	try {
-		localStorage.setItem(key, JSON.stringify(page));
+		localStorage.setItem(key, JSON.stringify(value));
 	} catch {
 		// Quota exceeded / storage disabled — non-critical for a prototype, fail silently.
 	}
@@ -34,11 +46,11 @@ function save(key: string, page: PersistedPage): void {
  * (that's the whole point being demonstrated).
  */
 export const draftStorage = {
-	load: () => load(DRAFT_KEY),
-	save: (page: PersistedPage) => save(DRAFT_KEY, page),
+	load: () => load<PersistedDraft>(DRAFT_KEY),
+	save: (draft: PersistedDraft) => save(DRAFT_KEY, draft),
 };
 
 export const publishedStorage = {
-	load: () => load(PUBLISHED_KEY),
-	save: (page: PersistedPage) => save(PUBLISHED_KEY, page),
+	load: () => load<PersistedPublished>(PUBLISHED_KEY),
+	save: (published: PersistedPublished) => save(PUBLISHED_KEY, published),
 };
