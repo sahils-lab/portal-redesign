@@ -10,6 +10,14 @@ import type { DataMode } from "../types/widget";
  * worksheet-id space got conflated. Filtering by dimension *value* sidesteps
  * that whole bug class: any widget that understands the "region" dimension
  * can react, with no widget-identity lookup involved.
+ *
+ * Multiple entries can be active AT ONCE, across DIFFERENT dimensions
+ * (click a product bar, then a seller bar — both apply, ANDed together, the
+ * same way a Power BI-style multi-visual selection works). Within the SAME
+ * dimension, selecting a new value replaces the old one rather than
+ * stacking (single-select per field); clicking the same value again clears
+ * it. One list, one set of rules, instead of a parallel single-filter and
+ * multi-filter mechanism.
  */
 export interface CrossFilter {
 	dimension: string;
@@ -19,27 +27,53 @@ export interface CrossFilter {
 interface PortalContextValue {
 	dataMode: DataMode;
 	setDataMode: (mode: DataMode) => void;
-	crossFilter: CrossFilter | null;
-	/** Passing the same filter that's already active clears it (click-to-toggle). */
-	setCrossFilter: (filter: CrossFilter) => void;
-	clearCrossFilter: () => void;
+	crossFilters: CrossFilter[];
+	/** Add/replace-within-dimension, or clear if the same {dimension, value} is already active. */
+	toggleCrossFilter: (filter: CrossFilter) => void;
+	isCrossFiltered: (dimension: string, value: string) => boolean;
+	/** The active value for a dimension, if any — for widgets that only care about one dimension (e.g. KPI's region narrowing). */
+	crossFilterValue: (dimension: string) => string | null;
+	clearCrossFilters: () => void;
+	clearCrossFilterDimension: (dimension: string) => void;
+	/** Bulk-replace every active cross-filter at once — used to restore a saved bookmark. Named distinctly from `utils/analytics.ts`'s `applyCrossFilters` (which filters rows, not state) to avoid an import collision. */
+	restoreCrossFilters: (next: CrossFilter[]) => void;
 }
 
 const PortalContext = createContext<PortalContextValue | null>(null);
 
 export function PortalProvider({ children, initialMode = "live" }: { children: ReactNode; initialMode?: DataMode }) {
 	const [dataMode, setDataMode] = useState<DataMode>(initialMode);
-	const [crossFilter, setCrossFilterState] = useState<CrossFilter | null>(null);
+	const [crossFilters, setCrossFilters] = useState<CrossFilter[]>([]);
 
-	const setCrossFilter = (filter: CrossFilter) => {
-		setCrossFilterState((current) =>
-			current && current.dimension === filter.dimension && current.value === filter.value ? null : filter
-		);
+	const toggleCrossFilter = (filter: CrossFilter) => {
+		setCrossFilters((current) => {
+			const withoutDim = current.filter((f) => f.dimension !== filter.dimension);
+			const alreadyActive = current.some((f) => f.dimension === filter.dimension && f.value === filter.value);
+			return alreadyActive ? withoutDim : [...withoutDim, filter];
+		});
 	};
-	const clearCrossFilter = () => setCrossFilterState(null);
+	const isCrossFiltered = (dimension: string, value: string) =>
+		crossFilters.some((f) => f.dimension === dimension && f.value === value);
+	const crossFilterValue = (dimension: string) => crossFilters.find((f) => f.dimension === dimension)?.value ?? null;
+	const clearCrossFilters = () => setCrossFilters([]);
+	const clearCrossFilterDimension = (dimension: string) =>
+		setCrossFilters((current) => current.filter((f) => f.dimension !== dimension));
+	const restoreCrossFilters = (next: CrossFilter[]) => setCrossFilters(next);
 
 	return (
-		<PortalContext.Provider value={{ dataMode, setDataMode, crossFilter, setCrossFilter, clearCrossFilter }}>
+		<PortalContext.Provider
+			value={{
+				dataMode,
+				setDataMode,
+				crossFilters,
+				toggleCrossFilter,
+				isCrossFiltered,
+				crossFilterValue,
+				clearCrossFilters,
+				clearCrossFilterDimension,
+				restoreCrossFilters,
+			}}
+		>
 			{children}
 		</PortalContext.Provider>
 	);
@@ -47,10 +81,10 @@ export function PortalProvider({ children, initialMode = "live" }: { children: R
 
 /**
  * The single source of truth for "are we showing live or published data"
- * AND for the active cross-filter — this is the fix for the real Portal's
- * biggest pain point, where the live/published decision was independently
- * reimplemented (and drifted) across 4+ files. Every widget reads this
- * instead of computing its own answer.
+ * AND for the active cross-filter set — this is the fix for the real
+ * Portal's biggest pain point, where the live/published decision was
+ * independently reimplemented (and drifted) across 4+ files. Every widget
+ * reads this instead of computing its own answer.
  */
 export function usePortalContext(): PortalContextValue {
 	const ctx = useContext(PortalContext);

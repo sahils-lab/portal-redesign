@@ -14,7 +14,7 @@ const DIMENSION = "region";
  */
 export function MetricWidget({ config }: { config: MetricWidgetConfig }) {
 	const { status, data, error, source, retry } = useWidgetData<MetricData>("metric", config.metricId);
-	const { crossFilter, setCrossFilter } = usePortalContext();
+	const { isCrossFiltered, toggleCrossFilter } = usePortalContext();
 
 	const handleExport = () => {
 		if (!data) return;
@@ -49,12 +49,12 @@ export function MetricWidget({ config }: { config: MetricWidgetConfig }) {
 					</thead>
 					<tbody>
 						{data.rows.map((row) => {
-							const isActive = crossFilter?.dimension === DIMENSION && crossFilter.value === row.label;
+							const isActive = isCrossFiltered(DIMENSION, row.label);
 							return (
 								<tr
 									key={row.label}
 									className={isActive ? "metric-widget__row metric-widget__row--active" : "metric-widget__row"}
-									onClick={() => setCrossFilter({ dimension: DIMENSION, value: row.label })}
+									onClick={() => toggleCrossFilter({ dimension: DIMENSION, value: row.label })}
 									title={`Filter dashboard by ${row.label}`}
 								>
 									<td>{row.label}</td>

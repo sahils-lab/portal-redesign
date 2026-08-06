@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import type { WidgetConfig } from "../types/widget";
+import type { EntityType } from "../types/analytics";
 import { usePortalContext } from "../context/PortalContext";
+import { useGlobalFilters } from "../context/FilterContext";
 import { PortalCanvas } from "../components/PortalCanvas";
+import { GlobalFilterBar } from "../components/filters/GlobalFilterBar";
+import { DrillThroughPage } from "./DrillThroughPage";
+import { BookmarksMenu } from "../components/builder/BookmarksMenu";
+import type { BookmarkSnapshot } from "../utils/bookmarks";
 import { StencilPanel } from "../components/builder/StencilPanel";
 import { PropertiesPanel } from "../components/builder/PropertiesPanel";
 import { BuilderHeader } from "../components/builder/BuilderHeader";
@@ -89,6 +95,24 @@ const initialWidgets: WidgetConfig[] = [
 		message: "2 reconciliation items need review.",
 		severity: "warning",
 	},
+	{
+		id: "w7",
+		type: "chart",
+		title: "Revenue Trend",
+		grid: { x: 0, y: 5, w: 4, h: 2 },
+		chartType: "line",
+		measure: "revenue",
+		dimension: "date",
+		dateGrain: "month",
+	},
+	{
+		id: "w8",
+		type: "table",
+		title: "Top Sellers",
+		grid: { x: 4, y: 5, w: 4, h: 2 },
+		dimension: "seller",
+		measures: ["revenue", "orders"],
+	},
 ];
 
 let duplicateCounter = 0;
@@ -100,7 +124,8 @@ function isTypingTarget(el: EventTarget | null): boolean {
 }
 
 export function PortalPage() {
-	const { dataMode, setDataMode } = usePortalContext();
+	const { dataMode, setDataMode, crossFilters, restoreCrossFilters } = usePortalContext();
+	const { filters: globalFilters, applyAll: applyGlobalFilterSet } = useGlobalFilters();
 
 	const [pageTitle, setPageTitle] = useState("Test2");
 	const [pages, setPages] = useState<PortalPageDoc[]>([
@@ -141,6 +166,26 @@ export function PortalPage() {
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 	const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
 	const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
+	const [drillThrough, setDrillThrough] = useState<{ entityType: EntityType; entityId: string } | null>(null);
+
+	const openDrillThrough = (entityType: EntityType, entityId: string) => setDrillThrough({ entityType, entityId });
+	const closeDrillThrough = () => setDrillThrough(null);
+
+	// Bookmarks capture "the view", not the widgets themselves — global
+	// filters, active cross-filters, which page, and live/published mode.
+	const buildBookmarkSnapshot = (): BookmarkSnapshot => ({
+		globalFilters,
+		crossFilters,
+		activePageId,
+		dataMode,
+	});
+	const applyBookmarkSnapshot = (snapshot: BookmarkSnapshot) => {
+		applyGlobalFilterSet(snapshot.globalFilters);
+		restoreCrossFilters(snapshot.crossFilters);
+		setDataMode(snapshot.dataMode);
+		if (snapshot.activePageId !== activePageId) switchToPage(snapshot.activePageId);
+		showToast("View restored");
+	};
 
 	// Load persisted draft + published snapshots once on mount.
 	useEffect(() => {
@@ -457,7 +502,7 @@ export function PortalPage() {
 				.filter(Boolean)
 				.join(" ")}
 		>
-			{!presentationMode && (
+			{!presentationMode && !drillThrough && (
 				<BuilderHeader
 					title={pageTitle}
 					onTitleChange={setPageTitle}
@@ -488,31 +533,40 @@ export function PortalPage() {
 					onAddPage={addPage}
 					onRenamePage={renamePage}
 					onDeletePage={deletePage}
+					bookmarksSlot={<BookmarksMenu getSnapshot={buildBookmarkSnapshot} onApply={applyBookmarkSnapshot} />}
 				/>
 			)}
-			{previewMode && (
-				<div className="preview-banner">
-					<Icon name="expand" size={13} /> Viewing the published version — this reflects your last Publish, not
-					unsaved edits.
-				</div>
+			{drillThrough ? (
+				<DrillThroughPage entityType={drillThrough.entityType} entityId={drillThrough.entityId} onBack={closeDrillThrough} />
+			) : (
+				<>
+					{previewMode && (
+						<div className="preview-banner">
+							<Icon name="expand" size={13} /> Viewing the published version — this reflects your last Publish, not
+							unsaved edits.
+						</div>
+					)}
+					{!presentationMode && <GlobalFilterBar />}
+					<div className="portal-builder__body">
+						<StencilPanel open={stencilOpen && !readOnly} onAddWidget={handleAddWidget} />
+						<PortalCanvas
+							widgets={displayedWidgets}
+							selectedIds={selectedIds}
+							onSelect={handleSelect}
+							onDelete={handleDeleteWidget}
+							onDuplicate={handleDuplicateWidget}
+							onDropWidgetKey={handleAddWidgetByKey}
+							onMoveWidget={handleMoveWidget}
+							onResizeWidget={handleResizeWidget}
+							readOnly={readOnly}
+							zoom={zoom}
+							deviceWidth={deviceWidths[deviceMode]}
+							onOpenDrillThrough={openDrillThrough}
+						/>
+						<PropertiesPanel open={propertiesOpen && !readOnly} selected={selectedWidget} onUpdate={handleUpdateWidget} />
+					</div>
+				</>
 			)}
-			<div className="portal-builder__body">
-				<StencilPanel open={stencilOpen && !readOnly} onAddWidget={handleAddWidget} />
-				<PortalCanvas
-					widgets={displayedWidgets}
-					selectedIds={selectedIds}
-					onSelect={handleSelect}
-					onDelete={handleDeleteWidget}
-					onDuplicate={handleDuplicateWidget}
-					onDropWidgetKey={handleAddWidgetByKey}
-					onMoveWidget={handleMoveWidget}
-					onResizeWidget={handleResizeWidget}
-					readOnly={readOnly}
-					zoom={zoom}
-					deviceWidth={deviceWidths[deviceMode]}
-				/>
-				<PropertiesPanel open={propertiesOpen && !readOnly} selected={selectedWidget} onUpdate={handleUpdateWidget} />
-			</div>
 			{presentationMode && (
 				<button type="button" className="presentation-exit" onClick={exitPresentation}>
 					<Icon name="collapse" size={14} /> Exit presentation (Esc)

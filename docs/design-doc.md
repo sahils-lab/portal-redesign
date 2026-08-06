@@ -189,6 +189,82 @@ Two more features, both closing gaps between "looks like a real builder" and
   widget type opts in by passing its own rows, so the popover content stays
   type-specific without four different tooltip implementations.
 
+## Interactivity batch: cross-filtering, drill-down/through, global filters, bookmarks
+
+A large batch, built in priority order: the features here all reinforce the
+same underlying query engine, so they're one cohesive addition rather than
+nine unrelated ones. A second batch (Smart Insights, Key Influencers,
+Decomposition Tree, Natural Language Query) is intentionally **not** in this
+pass — see "What this prototype is NOT" below for why, and "Open questions"
+for the plan.
+
+**The data layer these all share** — `src/mocks/salesData.ts` generates a
+~2-years, ~3,600-row order-line fact table (region → warehouse, category →
+subcategory → product, brand, seller, customer, date) with a seeded PRNG so
+the numbers are stable across reloads. `src/utils/analytics.ts` is the one
+query engine every widget below goes through — `applyGlobalFilters`,
+`applyCrossFilters`, `aggregateBy`, `aggregateByDateGrain`,
+`aggregateTable` — the same "one source of truth" principle as
+`useWidgetData`, just for this batch's data. Chart/Table widgets are a
+third widget category (`DataWidgetType` is a `useWidgetData`/live-published
+concept; Chart/Table read the fact table synchronously instead) — noted
+explicitly in `types/widget.ts` rather than left to be discovered.
+
+- **Cross-visual interactions** — clicking a bar, KPI breakdown row, or
+  table row toggles a `{ dimension, value }` entry in `PortalContext`'s
+  `crossFilters` **list** (not a single value anymore — see the type doc
+  comment for the exact rule: same dimension replaces, different dimensions
+  AND together, same value again clears). Every Chart/Table/KPI reacts,
+  the same click-to-toggle idea the prototype already had for
+  Metric → KPI, generalized to N widgets and N dimensions instead of one
+  hardcoded pair.
+- **Drill down/up** — ChartWidget supports two real hierarchies: the date
+  hierarchy (Year → Quarter → Month → Week → Day) and the catalog hierarchy
+  (Category → Subcategory → Product). Drill state is local component state,
+  not persisted — resets on reload/page-switch, the same accepted tradeoff
+  as multi-page's undo history, and for the same reason (keeping N
+  hierarchy-position stacks alive forever is real complexity a prototype
+  doesn't need). A breadcrumb ("All › Sports") drills back up to any level.
+  Dimensions without a real hierarchy (region, seller, warehouse, brand,
+  customer) just cross-filter on click instead of pretending to drill.
+- **Drill-through pages** — clicking a table row's "view details" icon (for
+  seller/warehouse/product/customer/region — the dimensions that resolve
+  to one real entity) opens `DrillThroughPage`: headline stats, a revenue
+  trend, and one relevant breakdown, computed fresh from the fact table
+  filtered to that entity. Implemented as in-app navigation state
+  (`drillThrough: {entityType, entityId} | null` in `PortalPage`), not a
+  router — consistent with how multi-page navigation already works here,
+  and avoids adding a routing dependency for one page type.
+- **Global sync filters** — Date range / Region / Business Unit /
+  Warehouse / Category / Brand / Seller, in `FilterContext`, persisted to
+  localStorage, applied on every page (unlike the cross-filter, which is
+  transient and per-page). Warehouse cascades off Region (the one real
+  parent/child relationship in this dimension set) — picking a region
+  narrows the warehouse list to the ones that actually belong to it.
+- **Rich filtering** — `MultiSelectFilter` is one searchable,
+  multi-select dropdown component reused for every dimension in the filter
+  bar, with a chip row underneath showing every active filter (across
+  global filters AND date range) with one-click remove, plus "Reset all".
+- **Dynamic field switching** — ChartWidget's Measure and Dimension
+  dropdowns re-query the fact table live; TableWidget's "Group by" dropdown
+  does the same. No dashboard edit required, matching the ask directly.
+- **Interactive KPI cards** — KPIWidget gained a sparkline (color-coded by
+  direction), a target-vs-actual status badge (green/amber/red — see
+  Conditional formatting below), and click-to-drill: clicking the value
+  toggles an inline region breakdown (existing `byRegion` data, now
+  surfaced instead of only backing the cross-filter).
+- **Conditional formatting** — `utils/conditionalFormatting.ts` is a small,
+  reusable rule (`value/target >= 100% → success, >= 80% → warning, else
+  danger`) — same thresholds a Power BI KPI visual defaults to. Currently
+  wired to KPIWidget's target badge; the module is generic enough to reuse
+  for Chart/Table cells later without new plumbing.
+- **Bookmarks** — `utils/bookmarks.ts` + `BookmarksMenu` capture "the view"
+  (global filters, active cross-filters, active page, live/published mode)
+  under a name, persisted to localStorage. Deliberately NOT the widgets
+  themselves — a bookmark is a saved *lens* on the dashboard, not a saved
+  copy of it, so editing widgets later doesn't silently break old
+  bookmarks.
+
 ## UI/UX polish
 
 Layered on after the architecture work, purely to make the builder feel
@@ -221,30 +297,49 @@ like a finished product rather than a functional-but-rough demo:
 - Doesn't include cross-env import/export or the AI widget builder — those
   are separate, larger concerns noted in the pain-points audit but out of
   scope for this architecture demo
-- Cross-filtering only understands one dimension (`region`) across two
-  widget types (Metric → KPI) — enough to demonstrate the concept safely,
-  not a general filter system
+- The "AI-powered" features from the interactivity batch's brief — Smart
+  Insights, Key Influencers, Decomposition Tree, Natural Language Query —
+  are deliberately out of THIS pass, not silently dropped. There's no
+  backend/LLM in this prototype to call; doing them honestly means either
+  real statistics computed from the mock fact table (variance/outlier
+  detection, correlation) with a pattern-matching NL parser rather than an
+  actual language model, or wiring up a real LLM call and accepting a
+  backend dependency this prototype has deliberately avoided everywhere
+  else. Flagged in "Open questions" rather than faked with canned copy.
+- Drill-through pages resolve to an in-app navigation state, not real URLs
+  — there's no router in this prototype (multi-page navigation works the
+  same way). Refreshing mid-drill-through loses the page, same as
+  refreshing mid-preview does today.
 
 ## Architecture overview
 
 ```
 App
- └─ PortalProvider (holds dataMode: "live" | "published", crossFilter)
-     └─ PortalPage (pages[] + activePageId; ONE useWidgetHistory instance
-                     reused across pages via history.replace() on switch;
-                     save/publish/preview state, now per-page)
-         ├─ BuilderHeader → PageMenu (switch / add / rename / delete)
-         └─ PortalCanvas (renders grid, live/published toggle, filter shelf)
-             └─ WidgetRenderer (exhaustive switch on widget.type)
-                 ├─ KPIWidget / MetricWidget / ReportWidget / ReconWidget
-                 │    (share WidgetCard shell + useWidgetData hook)
-                 └─ TitleWidget / LabelWidget / DividerWidget / InfoWidget / AlertWidget
-                      (render straight from config, no data fetch)
+ └─ PortalProvider (dataMode, crossFilters[] — click-driven, per-page)
+     └─ FilterProvider (GlobalFilters — persistent, every page)
+         └─ PortalPage (pages[] + activePageId; ONE useWidgetHistory instance
+                         reused across pages via history.replace() on switch;
+                         save/publish/preview state, now per-page;
+                         drillThrough: {entityType, entityId} | null)
+             ├─ BuilderHeader → PageMenu / BookmarksMenu
+             ├─ GlobalFilterBar → MultiSelectFilter (x6) + date range + chips
+             ├─ drillThrough set? → DrillThroughPage (own mini-dashboard)
+             └─ drillThrough null? → PortalCanvas (grid, live/published toggle,
+                     filter shelf showing every active crossFilters[] entry)
+                 └─ WidgetRenderer (exhaustive switch on widget.type)
+                     ├─ KPIWidget / MetricWidget / ReportWidget / ReconWidget
+                     │    (share WidgetCard shell + useWidgetData hook,
+                     │     live/published mock data)
+                     ├─ ChartWidget / TableWidget
+                     │    (share WidgetCard shell + utils/analytics.ts,
+                     │     read salesRows synchronously — no live/published)
+                     └─ TitleWidget / LabelWidget / DividerWidget / InfoWidget / AlertWidget
+                          (render straight from config, no data fetch)
 
-useWidgetData(type, entityId)
- └─ reads dataMode from PortalContext
- └─ calls widgetFetchers[type](entityId, dataMode)
- └─ returns { status, data, error, source, retry }
+useWidgetData(type, entityId)               utils/analytics.ts
+ └─ reads dataMode from PortalContext        └─ applyGlobalFilters / applyCrossFilters
+ └─ calls widgetFetchers[type](...)          └─ aggregateBy / aggregateByDateGrain / aggregateTable
+ └─ returns { status, data, error, source }  └─ shared by Chart/Table/DrillThroughPage
 
 PortalPage is moved OUT from under its own PortalProvider (it used to wrap
 itself) specifically so it can call usePortalContext() directly — needed to
@@ -261,3 +356,20 @@ force dataMode to "published" while in Preview.
       (widgets can be dropped/resized on top of each other)
 - [ ] Add tests (none exist yet — the real codebase has thin test coverage
       in this area too, worth not repeating that)
+- [ ] **Batch 2 (AI-flavored):** Smart Insights (rule-based deltas/outliers
+      over the fact table, not an LLM), Key Influencers (correlation/
+      variance-explained over `salesRows`, surfaced as ranked dimensions),
+      Decomposition Tree (recursive drill using the same `aggregateBy` the
+      ChartWidget already has), Natural Language Query (pattern-matching
+      parser for phrasings like "top N X by Y this month" → builds a real
+      ChartWidget/TableWidget config from the matched intent; honest
+      "couldn't parse that" state for anything unmatched)
+- [ ] **Batch 3:** Advanced tooltips as mini-dashboards (extend the
+      existing hover popover with a trend + related KPIs, not just static
+      metadata rows), Personal dashboard views (per-user widget layout
+      without a user system to scope it to — needs a decision on what
+      "per-user" means in a prototype with no auth), a real performance
+      pass now that the fact table is ~3,600 rows and every widget
+      re-aggregates on every filter change (works fine today; memoization
+      is already in place via `useMemo`, but virtualizing Chart/Table for
+      much larger datasets is the next lever if this scales up)

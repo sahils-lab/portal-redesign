@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Icon } from "../icons/Icon";
 import type { DeviceMode } from "./deviceModes";
 import { PageMenu, type Page } from "./PageMenu";
@@ -35,6 +35,7 @@ export function BuilderHeader({
 	onAddPage,
 	onRenamePage,
 	onDeletePage,
+	bookmarksSlot,
 }: {
 	title: string;
 	onTitleChange: (title: string) => void;
@@ -65,6 +66,7 @@ export function BuilderHeader({
 	onAddPage: () => void;
 	onRenamePage: (id: string, name: string) => void;
 	onDeletePage: (id: string) => void;
+	bookmarksSlot?: ReactNode;
 }) {
 	const [editing, setEditing] = useState(false);
 
@@ -148,6 +150,7 @@ export function BuilderHeader({
 				<button type="button" className="command-trigger" onClick={onOpenCommandPalette}>
 					<Icon name="query" size={13} /> Quick actions <kbd>⌘K</kbd>
 				</button>
+				{bookmarksSlot}
 				<div className="builder-header__spacer" />
 				<select
 					className="select-sm"

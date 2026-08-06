@@ -5,6 +5,8 @@ import type {
 	MetricWidgetConfig,
 	ReportWidgetConfig,
 	ReconWidgetConfig,
+	ChartWidgetConfig,
+	TableWidgetConfig,
 	TitleWidgetConfig,
 	LabelWidgetConfig,
 	DividerWidgetConfig,
@@ -69,6 +71,24 @@ export function createWidgetFromStencil(item: StencilItem, existing: WidgetConfi
 				type: "recon",
 				reconId: "recon-bank",
 			} satisfies ReconWidgetConfig;
+		case "chart":
+			return {
+				...base,
+				grid: nextGridPosition(existing, 4, 2),
+				type: "chart",
+				chartType: "bar",
+				measure: "revenue",
+				dimension: "region",
+				dateGrain: "month",
+			} satisfies ChartWidgetConfig;
+		case "table":
+			return {
+				...base,
+				grid: nextGridPosition(existing, 4, 2),
+				type: "table",
+				dimension: "seller",
+				measures: ["revenue", "orders"],
+			} satisfies TableWidgetConfig;
 		case "title":
 			return {
 				...base,

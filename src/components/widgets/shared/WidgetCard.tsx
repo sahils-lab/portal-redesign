@@ -8,6 +8,8 @@ interface WidgetCardProps {
 	onExport?: () => void;
 	/** Hover-only metadata (data source, aggregation, freshness), shown in a small info popover on hover. */
 	tooltip?: { label: string; value: string }[];
+	/** Optional row rendered between the header and the body — field-switcher dropdowns, a drill breadcrumb, etc. Only Chart/Table widgets use this so far. */
+	toolbar?: ReactNode;
 	children: ReactNode;
 }
 
@@ -19,7 +21,7 @@ interface WidgetCardProps {
  * widget renders through this one shell, so structural consistency is
  * enforced instead of hoped for.
  */
-export function WidgetCard({ title, sourceBadge, onExport, tooltip, children }: WidgetCardProps) {
+export function WidgetCard({ title, sourceBadge, onExport, tooltip, toolbar, children }: WidgetCardProps) {
 	return (
 		<div className="widget-card">
 			<div className="widget-card__header">
@@ -55,6 +57,7 @@ export function WidgetCard({ title, sourceBadge, onExport, tooltip, children }: 
 					)}
 				</div>
 			</div>
+			{toolbar && <div className="widget-card__toolbar">{toolbar}</div>}
 			<div className="widget-card__body">{children}</div>
 		</div>
 	);

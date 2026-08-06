@@ -6,12 +6,29 @@
  * switch checks instead of silently falling through.
  */
 
-export type WidgetType = "kpi" | "metric" | "report" | "recon" | "title" | "label" | "divider" | "info" | "alert";
+import type { MeasureKey, DimensionKey, DateGrain } from "./analytics";
+
+export type WidgetType =
+	| "kpi"
+	| "metric"
+	| "report"
+	| "recon"
+	| "chart"
+	| "table"
+	| "title"
+	| "label"
+	| "divider"
+	| "info"
+	| "alert";
 
 /**
  * Widget types that actually fetch data through useWidgetData/widgetFetchers.
  * Display-category widgets (title/label/divider/info/alert) render straight
  * from their own config — no async fetch, no live/published distinction.
+ * Analytics widgets (chart/table) are a third category: they read
+ * synchronously from the in-memory sales fact table (see `mocks/salesData`)
+ * through the global + cross filters, so they don't need a loading state or
+ * a live/published split either — they're not part of `DataWidgetType`.
  */
 export type DataWidgetType = "kpi" | "metric" | "report" | "recon";
 
@@ -54,6 +71,23 @@ export interface ReconWidgetConfig extends BaseWidgetConfig {
 	reconId: string;
 }
 
+/** Bar/line chart over the sales fact table — the dimension and measure are user-switchable (Dynamic Field Switching), and the dimension supports drill-down/up (date hierarchy or category hierarchy). */
+export interface ChartWidgetConfig extends BaseWidgetConfig {
+	type: "chart";
+	chartType: "bar" | "line";
+	measure: MeasureKey;
+	/** "date" drills Year -> Quarter -> Month -> Week -> Day; any DimensionKey drills through its catalog hierarchy where one exists (category -> subcategory -> product). */
+	dimension: DimensionKey | "date";
+	dateGrain: DateGrain;
+}
+
+/** Ranked table over the sales fact table — rows are click-to-cross-filter and each has a "View details" drill-through action. */
+export interface TableWidgetConfig extends BaseWidgetConfig {
+	type: "table";
+	dimension: DimensionKey;
+	measures: MeasureKey[];
+}
+
 /** Display-category widgets — no data fetch, pure config -> render. */
 
 export interface TitleWidgetConfig extends BaseWidgetConfig {
@@ -92,6 +126,8 @@ export type WidgetConfig =
 	| MetricWidgetConfig
 	| ReportWidgetConfig
 	| ReconWidgetConfig
+	| ChartWidgetConfig
+	| TableWidgetConfig
 	| TitleWidgetConfig
 	| LabelWidgetConfig
 	| DividerWidgetConfig
@@ -111,8 +147,12 @@ export interface KPIData {
 	value: number;
 	previousValue: number | null;
 	currency: string | null;
-	/** Per-"region" breakdown, keyed the same way MetricData's row labels are — lets the cross-filter narrow this KPI to a single region. */
+	/** Per-"region" breakdown, keyed the same way MetricData's row labels are — lets the cross-filter narrow this KPI to a single region, and powers the click-to-drill breakdown. */
 	byRegion?: Record<string, number>;
+	/** Recent-period values (oldest -> newest) for the sparkline. */
+	trend?: number[];
+	/** Optional goal for this KPI — drives the conditional-formatting status color (on-track / at-risk / behind). */
+	target?: number | null;
 }
 
 export interface MetricRow {

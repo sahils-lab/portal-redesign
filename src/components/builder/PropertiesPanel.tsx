@@ -26,18 +26,27 @@ export function PropertiesPanel({
 			<div className="properties-panel__scroll">
 				{!selected && <p className="properties-panel__empty">Select a widget to edit its properties.</p>}
 
-				{selected && (selected.type === "kpi" || selected.type === "metric" || selected.type === "report" || selected.type === "recon") && (
-					<div className="properties-field">
-						<label htmlFor="widget-label">Label</label>
-						<input
-							id="widget-label"
-							type="text"
-							value={selected.title}
-							placeholder="Enter Label"
-							onChange={(e) => onUpdate(selected.id, { title: e.target.value })}
-						/>
-					</div>
-				)}
+				{selected &&
+					(selected.type === "kpi" ||
+						selected.type === "metric" ||
+						selected.type === "report" ||
+						selected.type === "recon" ||
+						selected.type === "chart" ||
+						selected.type === "table") && (
+						<div className="properties-field">
+							<label htmlFor="widget-label">Label</label>
+							<input
+								id="widget-label"
+								type="text"
+								value={selected.title}
+								placeholder="Enter Label"
+								onChange={(e) => onUpdate(selected.id, { title: e.target.value })}
+							/>
+							{(selected.type === "chart" || selected.type === "table") && (
+								<p className="properties-panel__empty">Measure/dimension are set from the widget's own toolbar.</p>
+							)}
+						</div>
+					)}
 
 				{selected && selected.type === "title" && (
 					<>

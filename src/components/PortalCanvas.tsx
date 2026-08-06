@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
 import type { GridPosition, WidgetConfig } from "../types/widget";
+import type { EntityType } from "../types/analytics";
 import { WidgetRenderer } from "./widgets/WidgetRenderer";
 import { usePortalContext } from "../context/PortalContext";
 import { Icon } from "./icons/Icon";
@@ -51,6 +52,7 @@ export function PortalCanvas({
 	readOnly = false,
 	zoom = 1,
 	deviceWidth = null,
+	onOpenDrillThrough,
 }: {
 	widgets: WidgetConfig[];
 	selectedIds: Set<string>;
@@ -66,8 +68,10 @@ export function PortalCanvas({
 	zoom?: number;
 	/** Constrains the canvas to a device viewport width (Tablet/Mobile preview) — null means unconstrained (Desktop). */
 	deviceWidth?: number | null;
+	/** Opens the drill-through detail page for a Chart/Table row's entity. */
+	onOpenDrillThrough?: (entityType: EntityType, entityId: string) => void;
 }) {
-	const { dataMode, setDataMode, crossFilter, clearCrossFilter } = usePortalContext();
+	const { dataMode, setDataMode, crossFilters, clearCrossFilterDimension, clearCrossFilters } = usePortalContext();
 	const [isDragOver, setIsDragOver] = useState(false);
 	const [ghostCell, setGhostCell] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 	const [alignGuides, setAlignGuides] = useState<AlignGuides | null>(null);
@@ -249,14 +253,26 @@ export function PortalCanvas({
 						Published
 					</button>
 				</div>
-				{crossFilter && (
+				{crossFilters.length > 0 && (
 					<div className="filter-shelf">
 						<Icon name="filter" size={13} />
 						<span className="filter-shelf__label">Filters:</span>
-						<button type="button" className="filter-shelf__chip" onClick={clearCrossFilter}>
-							{crossFilter.dimension}: {crossFilter.value}
-							<Icon name="close" size={11} />
-						</button>
+						{crossFilters.map((f) => (
+							<button
+								key={`${f.dimension}:${f.value}`}
+								type="button"
+								className="filter-shelf__chip"
+								onClick={() => clearCrossFilterDimension(f.dimension)}
+							>
+								{f.dimension}: {f.value}
+								<Icon name="close" size={11} />
+							</button>
+						))}
+						{crossFilters.length > 1 && (
+							<button type="button" className="link-btn filter-shelf__clear-all" onClick={clearCrossFilters}>
+								Clear all
+							</button>
+						)}
 					</div>
 				)}
 				{selectedIds.size > 1 && <span className="portal-canvas__multi-hint">{selectedIds.size} widgets selected · Delete to remove</span>}
@@ -372,7 +388,7 @@ export function PortalCanvas({
 											</button>
 										</div>
 									)}
-									<WidgetRenderer config={widget} />
+									<WidgetRenderer config={widget} onOpenDrillThrough={onOpenDrillThrough} />
 									{!readOnly && (
 										<div
 											className="canvas-cell__resize-handle"

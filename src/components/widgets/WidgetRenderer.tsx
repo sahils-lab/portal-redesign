@@ -1,8 +1,11 @@
 import type { WidgetConfig } from "../../types/widget";
+import type { EntityType } from "../../types/analytics";
 import { KPIWidget } from "./KPIWidget/KPIWidget";
 import { MetricWidget } from "./MetricWidget/MetricWidget";
 import { ReportWidget } from "./ReportWidget/ReportWidget";
 import { ReconWidget } from "./ReconWidget/ReconWidget";
+import { ChartWidget } from "./ChartWidget/ChartWidget";
+import { TableWidget } from "./TableWidget/TableWidget";
 import { TitleWidget } from "./TitleWidget/TitleWidget";
 import { LabelWidget } from "./LabelWidget/LabelWidget";
 import { DividerWidget } from "./DividerWidget/DividerWidget";
@@ -19,7 +22,13 @@ import { AlertWidget } from "./AlertWidget/AlertWidget";
  * without the WidgetCard shell the data widgets use — that matches the real
  * Portal, where these are inline layout elements, not data cards.
  */
-export function WidgetRenderer({ config }: { config: WidgetConfig }) {
+export function WidgetRenderer({
+	config,
+	onOpenDrillThrough,
+}: {
+	config: WidgetConfig;
+	onOpenDrillThrough?: (entityType: EntityType, entityId: string) => void;
+}) {
 	switch (config.type) {
 		case "kpi":
 			return <KPIWidget config={config} />;
@@ -29,6 +38,10 @@ export function WidgetRenderer({ config }: { config: WidgetConfig }) {
 			return <ReportWidget config={config} />;
 		case "recon":
 			return <ReconWidget config={config} />;
+		case "chart":
+			return <ChartWidget config={config} onOpenDrillThrough={onOpenDrillThrough} />;
+		case "table":
+			return <TableWidget config={config} onOpenDrillThrough={onOpenDrillThrough} />;
 		case "title":
 			return <TitleWidget config={config} />;
 		case "label":

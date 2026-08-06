@@ -37,6 +37,30 @@ that's actually useful, and what was removed/fixed because it wasn't. See
 - Hover tooltips on data widgets (source, dimensions, live-vs-published)
 - Widget resizing via a drag handle, alongside move
 
+**Interactivity batch: filtering, drill-down/through, bookmarks**
+- Multi-dimension cross-filtering — click a bar/row on ANY chart, KPI, or
+  table and every other widget reacts, across as many dimensions at once
+  as you click (was one hardcoded region↔KPI pair before)
+- Drill down/up on ChartWidget — Year → Quarter → Month → Week → Day, and
+  Category → Subcategory → Product, with a breadcrumb back up
+- Drill-through pages — a "view details" action on seller/warehouse/
+  product/customer/region rows opens a dedicated detail mini-dashboard for
+  that one entity
+- Global sync filters — Date range / Region / Business Unit / Warehouse /
+  Category / Brand / Seller apply across every page, persisted, with
+  Warehouse cascading off Region
+- Rich, searchable multi-select filter dropdowns with a removable-chip row
+  and one-click reset
+- Dynamic field switching — swap a chart's measure and dimension, or a
+  table's group-by, from dropdowns, no dashboard edit needed
+- Interactive KPI cards — sparkline, target-vs-actual status color
+  (conditional formatting), click-to-drill into a region breakdown
+- Bookmarks — save the current filters + cross-filters + page + live/
+  published mode as a named view, restore it in one click
+- A real ~3,600-row mock sales fact table + query engine
+  (`utils/analytics.ts`) backing all of the above, instead of the earlier
+  two-region toy dataset
+
 **Polish**
 - Skeleton loading states instead of "Loading…" text
 - Multi-select, keyboard delete, duplicate widget, right-click context menu

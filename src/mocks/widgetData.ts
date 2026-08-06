@@ -14,6 +14,8 @@ export const mockKPIData: Record<"live" | "published", Record<string, KPIData>> 
 			previousValue: 118_200,
 			currency: "USD",
 			byRegion: { "North America": 84_400, EMEA: 44_050 },
+			trend: [96_200, 101_400, 108_900, 112_300, 118_200, 128_450],
+			target: 125_000,
 		},
 	},
 	published: {
@@ -22,6 +24,8 @@ export const mockKPIData: Record<"live" | "published", Record<string, KPIData>> 
 			previousValue: 105_000,
 			currency: "USD",
 			byRegion: { "North America": 78_500, EMEA: 39_700 },
+			trend: [88_100, 93_600, 99_200, 102_800, 105_000, 118_200],
+			target: 125_000,
 		},
 	},
 };
