@@ -443,6 +443,20 @@ Fixed in `PortalCanvas.tsx`:
   (`defaultWidgetSize()` in `createWidget.ts`, now the one place per-type
   default sizes live — previously duplicated as literals in each
   `createWidgetFromStencil` case).
+- **Click-to-add** had the same root bug in a different spot: it never had
+  a cursor position to place at, so it went through `nextGridPosition`
+  (`createWidget.ts`) — which always computed `{ x: 0, y: maxY }`, i.e.
+  literally "append a brand-new row below every existing widget," even when
+  there was open space next to something on an earlier row. `nextGridPosition`
+  now scans row by row, left to right, for the first cell the new widget's
+  footprint actually fits in (reusing the same AABB `collides()` check as
+  the drag flows, duplicated locally rather than imported from
+  `PortalCanvas.tsx` to keep this builder-logic module from depending on a
+  component module), and only falls back to a fresh row below everything
+  once no row has room. `GRID_COLUMNS` moved to live in `createWidget.ts`
+  (imported by `PortalCanvas.tsx`, not redefined there) so both the scan and
+  the drag-clamping math share one number instead of two copies that happened
+  to agree.
 
 ## Open questions / next steps
 

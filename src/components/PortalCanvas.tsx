@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type DragEvent, type PointerEvent as Rea
 import type { GridPosition, WidgetConfig } from "../types/widget";
 import type { EntityType } from "../types/analytics";
 import type { StencilItem } from "./builder/stencilConfig";
-import { defaultWidgetSize } from "./builder/createWidget";
+import { defaultWidgetSize, GRID_COLUMNS } from "./builder/createWidget";
 import { WidgetRenderer } from "./widgets/WidgetRenderer";
 import { usePortalContext } from "../context/PortalContext";
 import { Icon } from "./icons/Icon";
@@ -10,7 +10,6 @@ import { Icon } from "./icons/Icon";
 const STENCIL_DND_TYPE = "application/x-stencil-item";
 const CANVAS_WIDGET_DND_TYPE = "application/x-canvas-widget";
 
-const GRID_COLUMNS = 8;
 const ROW_HEIGHT_PX = 130;
 const GRID_GAP_PX = 16; // matches --space-xl
 

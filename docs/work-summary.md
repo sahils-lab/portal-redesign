@@ -88,6 +88,10 @@ that's actually useful, and what was removed/fixed because it wasn't. See
   collision-checked against other widgets, a blocked cell shows red with a
   ✕ and the browser's native "not-allowed" cursor, and the drop is rejected
   rather than silently placed somewhere else.
+- Click-to-add (no drag, just clicking a stencil item) always appended a
+  brand-new row below every existing widget, even when there was open space
+  next to something on an earlier row. Now scans for the first gap the new
+  widget actually fits in, filling existing rows before starting a new one.
 
 ## Removed / fixed — wasn't useful as it was
 

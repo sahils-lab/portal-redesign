@@ -21,6 +21,9 @@ import type { StencilItem } from "./stencilConfig";
 
 let nextId = 100;
 
+/** Grid column count — the one place this lives; PortalCanvas imports it rather than keeping its own copy, since the two used to drift apart in spirit even when equal in value. */
+export const GRID_COLUMNS = 8;
+
 /**
  * Each widget type's default footprint on the 8-column grid — the single
  * source of truth for "how big is a new one of these," used both when
@@ -50,9 +53,29 @@ export function defaultWidgetSize(type: WidgetType): { w: number; h: number } {
 	return WIDGET_SIZE[type] ?? { w: 2, h: 2 };
 }
 
-/** Finds the next free row below all existing widgets so new ones don't overlap — used when there's no explicit drop position (click-to-add from the stencil). */
+/** Same AABB overlap test PortalCanvas uses for drag/resize — duplicated rather than imported to avoid a dependency back on a component module from this builder-logic one. */
+function collides(a: GridPosition, existing: WidgetConfig[]): boolean {
+	return existing.some((w) => {
+		const g = w.grid;
+		return a.x < g.x + g.w && a.x + a.w > g.x && a.y < g.y + g.h && a.y + a.h > g.y;
+	});
+}
+
+/**
+ * Finds the first free cell this widget's footprint fits in — scanning row
+ * by row, left to right, so a click-to-add widget lands next to existing
+ * ones on a row with room rather than always appending a new row below
+ * everything. Used when there's no explicit drop position (click-to-add
+ * from the stencil, or the command palette); drag-and-drop already supplies
+ * an explicit, collision-checked cell from PortalCanvas.
+ */
 function nextGridPosition(existing: WidgetConfig[], w: number, h: number): GridPosition {
 	const maxY = existing.reduce((max, widget) => Math.max(max, widget.grid.y + widget.grid.h), 0);
+	for (let y = 0; y <= maxY; y++) {
+		for (let x = 0; x <= GRID_COLUMNS - w; x++) {
+			if (!collides({ x, y, w, h }, existing)) return { x, y, w, h };
+		}
+	}
 	return { x: 0, y: maxY, w, h };
 }
 
