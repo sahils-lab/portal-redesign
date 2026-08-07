@@ -7,6 +7,9 @@ import type {
 	ReconWidgetConfig,
 	ChartWidgetConfig,
 	TableWidgetConfig,
+	WaterfallWidgetConfig,
+	MatrixWidgetConfig,
+	WhatIfWidgetConfig,
 	TitleWidgetConfig,
 	LabelWidgetConfig,
 	DividerWidgetConfig,
@@ -89,6 +92,37 @@ export function createWidgetFromStencil(item: StencilItem, existing: WidgetConfi
 				dimension: "seller",
 				measures: ["revenue", "orders"],
 			} satisfies TableWidgetConfig;
+		case "waterfall":
+			return {
+				...base,
+				grid: nextGridPosition(existing, 4, 2),
+				type: "waterfall",
+				measure: "revenue",
+				dimension: "date",
+				dateGrain: "month",
+			} satisfies WaterfallWidgetConfig;
+		case "matrix":
+			return {
+				...base,
+				grid: nextGridPosition(existing, 4, 2),
+				type: "matrix",
+				rowDimension: "region",
+				columnDimension: "category",
+				measure: "revenue",
+			} satisfies MatrixWidgetConfig;
+		case "whatif":
+			return {
+				...base,
+				grid: nextGridPosition(existing, 3, 1),
+				type: "whatif",
+				parameterId: base.id,
+				label: "Revenue growth",
+				min: -20,
+				max: 20,
+				step: 1,
+				defaultValue: 0,
+				unit: "percent",
+			} satisfies WhatIfWidgetConfig;
 		case "title":
 			return {
 				...base,

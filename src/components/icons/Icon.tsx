@@ -22,6 +22,9 @@ export type IconName =
 	| "input-table"
 	| "view-table"
 	| "alert"
+	| "waterfall"
+	| "matrix"
+	| "whatif"
 	| "chevron-down"
 	| "plus"
 	| "trash"
@@ -49,6 +52,9 @@ const paths: Record<IconName, string> = {
 	"input-table": "M3 5h14v10H3z M3 9h14 M8 5v10",
 	"view-table": "M3 5h14v10H3z M3 9h14 M3 12h14 M8 5v10",
 	alert: "M10 3l8 14H2z M10 8v4 M10 14.5v.01",
+	waterfall: "M3 16V12h3v4z M8 16V6h3v10z M13 16V9h3v7z M3 3v13h14",
+	matrix: "M3 4h14v12H3z M3 8h14 M3 12h14 M8 4v12 M13 4v12",
+	whatif: "M4 10h12 M7 6.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z",
 	"chevron-down": "M5 7.5l5 5 5-5",
 	plus: "M10 4v12 M4 10h12",
 	trash: "M4 6h12 M8 6V4h4v2 M6 6l1 10h6l1-10",

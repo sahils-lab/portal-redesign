@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ChartWidgetConfig } from "../../../types/widget";
 import type { MeasureKey, DimensionKey, DateGrain, EntityType } from "../../../types/analytics";
+import type { AggregatedPoint, DateAggregatedPoint } from "../../../utils/analytics";
 import { usePortalContext } from "../../../context/PortalContext";
 import { useGlobalFilters } from "../../../context/FilterContext";
 import { WidgetCard } from "../shared/WidgetCard";
@@ -24,6 +25,8 @@ const CATALOG_LEVELS: DimensionKey[] = ["category", "subcategory", "product"];
 
 const MEASURE_OPTIONS = Object.values(MEASURES);
 const DIMENSION_OPTIONS: (DimensionKey | "date")[] = ["date", ...(Object.keys(DIMENSIONS) as DimensionKey[])];
+const TOP_N_OPTIONS = [5, 10, 15, 20, 999];
+const DEFAULT_TOP_N = 8;
 
 /**
  * Bar/line chart over the shared sales fact table. Three interactive
@@ -44,9 +47,16 @@ export function ChartWidget({
 	const [chartType, setChartType] = useState<"bar" | "line">(config.chartType);
 	const [dateDrill, setDateDrill] = useState<{ grain: DateGrain; key: string; label: string }[]>([]);
 	const [catalogDrill, setCatalogDrill] = useState<{ level: DimensionKey; value: string }[]>([]);
+	const [topN, setTopN] = useState<number>(config.topN ?? DEFAULT_TOP_N);
+	const [whatIfId, setWhatIfId] = useState<string>("");
 
 	const { filters } = useGlobalFilters();
-	const { crossFilters, toggleCrossFilter } = usePortalContext();
+	const { crossFilters, toggleCrossFilter, whatIfParams } = usePortalContext();
+	const activeWhatIf = whatIfId ? whatIfParams[whatIfId] : undefined;
+	// Percent parameters only — a "number" what-if wouldn't have an obvious
+	// unit-consistent way to apply to every measure, so it's exposed for
+	// display (WhatIfWidget) but not wired into this multiplier.
+	const whatIfFactor = activeWhatIf && activeWhatIf.unit === "percent" ? 1 + activeWhatIf.value / 100 : 1;
 
 	const changeDimension = (next: DimensionKey | "date") => {
 		setDimension(next);
@@ -73,10 +83,13 @@ export function ChartWidget({
 	const currentCatalogLevel = CATALOG_LEVELS[catalogDrill.length];
 
 	const series = useMemo(() => {
-		if (dimension === "date") return aggregateByDateGrain(baseRows, currentGrain, measure).slice(-14);
-		if (dimension === "category") return aggregateBy(baseRows, currentCatalogLevel, measure).slice(0, 8);
-		return aggregateBy(baseRows, dimension, measure).slice(0, 8);
-	}, [baseRows, dimension, measure, currentGrain, currentCatalogLevel]);
+		let points: (AggregatedPoint | DateAggregatedPoint)[];
+		if (dimension === "date") points = aggregateByDateGrain(baseRows, currentGrain, measure).slice(-topN);
+		else if (dimension === "category") points = aggregateBy(baseRows, currentCatalogLevel, measure).slice(0, topN);
+		else points = aggregateBy(baseRows, dimension, measure).slice(0, topN);
+		if (whatIfFactor === 1) return points;
+		return points.map((p) => ({ ...p, value: Math.round(p.value * whatIfFactor * 100) / 100 }));
+	}, [baseRows, dimension, measure, currentGrain, currentCatalogLevel, topN, whatIfFactor]);
 
 	const canDrillDown =
 		dimension === "date"
@@ -137,6 +150,7 @@ export function ChartWidget({
 				{ label: "Measure", value: measureDef.label },
 				{ label: "Dimension", value: dimension === "date" ? `Date (${currentGrain})` : DIMENSIONS[dimension].label },
 				{ label: "Rows", value: String(baseRows.length) },
+				...(activeWhatIf ? [{ label: "What-if applied", value: `${activeWhatIf.label}: ${activeWhatIf.value}%` }] : []),
 			]}
 			toolbar={
 				<div className="chart-widget__toolbar">
@@ -190,6 +204,29 @@ export function ChartWidget({
 								</span>
 							))}
 						</div>
+					)}
+					<span className="chart-widget__toolbar-by">Top</span>
+					<select className="select-sm" value={topN} onChange={(e) => setTopN(Number(e.target.value))} title="Visual-level Top N filter">
+						{TOP_N_OPTIONS.map((n) => (
+							<option key={n} value={n}>
+								{n === 999 ? "All" : n}
+							</option>
+						))}
+					</select>
+					{Object.keys(whatIfParams).length > 0 && (
+						<select
+							className="select-sm"
+							value={whatIfId}
+							onChange={(e) => setWhatIfId(e.target.value)}
+							title="Apply a what-if parameter's adjustment to this chart"
+						>
+							<option value="">What-if: none</option>
+							{Object.entries(whatIfParams).map(([id, p]) => (
+								<option key={id} value={id} disabled={p.unit !== "percent"}>
+									What-if: {p.label}
+								</option>
+							))}
+						</select>
 					)}
 				</div>
 			}

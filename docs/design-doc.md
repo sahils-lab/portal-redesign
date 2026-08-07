@@ -330,7 +330,9 @@ App
                      ├─ KPIWidget / MetricWidget / ReportWidget / ReconWidget
                      │    (share WidgetCard shell + useWidgetData hook,
                      │     live/published mock data)
-                     ├─ ChartWidget / TableWidget
+                     ├─ ChartWidget / TableWidget / WaterfallWidget / MatrixWidget
+                     ├─ WhatIfWidget (publishes to PortalContext.whatIfParams,
+                     │    read by ChartWidget's "Apply what-if" dropdown)
                      │    (share WidgetCard shell + utils/analytics.ts,
                      │     read salesRows synchronously — no live/published)
                      └─ TitleWidget / LabelWidget / DividerWidget / InfoWidget / AlertWidget
@@ -345,6 +347,62 @@ PortalPage is moved OUT from under its own PortalProvider (it used to wrap
 itself) specifically so it can call usePortalContext() directly — needed to
 force dataMode to "published" while in Preview.
 ```
+
+## Power BI-parity batch: waterfall, matrix, top N, what-if parameter
+
+Four more Power BI dashboard-design capabilities the prototype didn't have,
+chosen deliberately to *not* overlap with the AI-flavored items already
+deferred to Batch 2 below (Smart Insights, Key Influencers, Decomposition
+Tree, NLQ):
+
+- **Waterfall chart** (`WaterfallWidget`) — a new widget type, same
+  measure/dimension toolbar pattern as `ChartWidget`, but instead of one bar
+  per bucket it shows each bucket's own contribution stacked on a running
+  total, ending in an explicit "Total" bar — Power BI's standard "how did
+  the parts build up to the whole" shape. Colored by sign (green = positive
+  contribution, red = negative), not by position, since `profit` can go
+  negative per bucket even though most measures here are non-negative sums.
+  Built as its own SVG (pixel-computed bar rects, same approach
+  `ChartWidget`'s line-chart mode already uses) rather than reusing
+  `ChartWidget`'s bar-list markup, because a waterfall bar floats between two
+  y-values instead of starting at zero.
+- **Matrix widget** (`MatrixWidget`) — a genuine cross-tab pivot: row
+  dimension x column dimension, one measure per cell, with a row-subtotal
+  column, a column-subtotal/Total row, and a grand total —
+  `utils/analytics.ts`'s new `aggregateMatrix`. This is the thing a flat
+  `TableWidget` structurally can't show (it only ever ranks one dimension).
+  Deliberately **not** hierarchical/expandable — rows and columns are each
+  capped to their top-N by total and rendered flat. A real Matrix visual
+  lets you nest row groups and expand/collapse them; that's a materially
+  bigger feature (multi-level row keys, collapse state per node) than "add
+  subtotals to a table," and subtotals are the part that's actually load-
+  bearing for a financial dashboard.
+- **Visual-level Top N filter** — `ChartWidgetConfig.topN` /
+  `TableWidgetConfig.topN`, surfaced as a toolbar dropdown (5/10/15/20/All)
+  next to the existing measure/dimension switchers. This is the Power BI
+  distinction between a dashboard-wide filter (this app's Global Filter Bar,
+  from the previous batch) and a per-visual filter that only narrows one
+  widget — previously the "how many bars/rows to show" limit was a hardcoded
+  constant (8 for Chart, 12 for Table) with no user control at all.
+- **What-if parameter** (`WhatIfWidget`) — a slider-driven scenario input
+  (e.g. "Revenue growth −20% to +20%"). Its live value is published to
+  `PortalContext.whatIfParams`, keyed by `parameterId` rather than widget id
+  — deliberately the same decoupled-by-key pattern `crossFilter` already
+  uses, for the same reason (no widget-identity lookup to get wrong). Any
+  `ChartWidget` gets an "Apply what-if" toolbar dropdown listing every
+  what-if parameter currently on the page; picking one multiplies the
+  chart's values by `1 + value/100` client-side, so a viewer can ask "what
+  would this look like if growth were +10%" without touching real data.
+  Only parameters with `unit: "percent"` are selectable this way — a
+  "number" unit is exposed for the widget's own display but isn't wired into
+  a measure multiplier, since there's no unit-consistent way to apply an
+  arbitrary number to every measure. `PortalContext` registers/unregisters
+  params as `WhatIfWidget` instances mount/unmount, so deleting the widget
+  cleanly removes the parameter from every other widget's dropdown; the
+  duplicate-widget action gives a copied what-if widget a fresh
+  `parameterId` rather than letting two sliders silently fight over one
+  registry entry (the same bug shape as reusing an id space instead of a
+  value — see the crossFilter note above).
 
 ## Open questions / next steps
 
@@ -364,6 +422,9 @@ force dataMode to "published" while in Preview.
       parser for phrasings like "top N X by Y this month" → builds a real
       ChartWidget/TableWidget config from the matched intent; honest
       "couldn't parse that" state for anything unmatched)
+- [ ] **Matrix hierarchy:** row/column groups that nest and expand/collapse
+      (e.g. Category → Subcategory rows), rather than today's flat top-N
+      pivot — needs multi-level row keys and per-node collapse state.
 - [ ] **Batch 3:** Advanced tooltips as mini-dashboards (extend the
       existing hover popover with a trend + related KPIs, not just static
       metadata rows), Personal dashboard views (per-user widget layout

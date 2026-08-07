@@ -24,6 +24,13 @@ export interface CrossFilter {
 	value: string;
 }
 
+/** A registered What-if parameter's live state — see WhatIfWidget and WhatIfWidgetConfig. */
+export interface WhatIfParam {
+	label: string;
+	value: number;
+	unit: "percent" | "number";
+}
+
 interface PortalContextValue {
 	dataMode: DataMode;
 	setDataMode: (mode: DataMode) => void;
@@ -37,6 +44,11 @@ interface PortalContextValue {
 	clearCrossFilterDimension: (dimension: string) => void;
 	/** Bulk-replace every active cross-filter at once — used to restore a saved bookmark. Named distinctly from `utils/analytics.ts`'s `applyCrossFilters` (which filters rows, not state) to avoid an import collision. */
 	restoreCrossFilters: (next: CrossFilter[]) => void;
+	/** Every What-if parameter currently on the page, keyed by parameterId — populated by WhatIfWidget instances mounting/unmounting, read by any Chart/Table widget that wants to apply one. */
+	whatIfParams: Record<string, WhatIfParam>;
+	registerWhatIf: (id: string, param: WhatIfParam) => void;
+	setWhatIfValue: (id: string, value: number) => void;
+	unregisterWhatIf: (id: string) => void;
 }
 
 const PortalContext = createContext<PortalContextValue | null>(null);
@@ -44,6 +56,7 @@ const PortalContext = createContext<PortalContextValue | null>(null);
 export function PortalProvider({ children, initialMode = "live" }: { children: ReactNode; initialMode?: DataMode }) {
 	const [dataMode, setDataMode] = useState<DataMode>(initialMode);
 	const [crossFilters, setCrossFilters] = useState<CrossFilter[]>([]);
+	const [whatIfParams, setWhatIfParams] = useState<Record<string, WhatIfParam>>({});
 
 	const toggleCrossFilter = (filter: CrossFilter) => {
 		setCrossFilters((current) => {
@@ -60,6 +73,18 @@ export function PortalProvider({ children, initialMode = "live" }: { children: R
 		setCrossFilters((current) => current.filter((f) => f.dimension !== dimension));
 	const restoreCrossFilters = (next: CrossFilter[]) => setCrossFilters(next);
 
+	const registerWhatIf = (id: string, param: WhatIfParam) =>
+		setWhatIfParams((current) => (id in current ? current : { ...current, [id]: param }));
+	const setWhatIfValue = (id: string, value: number) =>
+		setWhatIfParams((current) => (current[id] ? { ...current, [id]: { ...current[id], value } } : current));
+	const unregisterWhatIf = (id: string) =>
+		setWhatIfParams((current) => {
+			if (!(id in current)) return current;
+			const next = { ...current };
+			delete next[id];
+			return next;
+		});
+
 	return (
 		<PortalContext.Provider
 			value={{
@@ -72,6 +97,10 @@ export function PortalProvider({ children, initialMode = "live" }: { children: R
 				clearCrossFilters,
 				clearCrossFilterDimension,
 				restoreCrossFilters,
+				whatIfParams,
+				registerWhatIf,
+				setWhatIfValue,
+				unregisterWhatIf,
 			}}
 		>
 			{children}
