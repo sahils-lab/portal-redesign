@@ -117,6 +117,62 @@ export function aggregateTable(rows: SalesRow[], dimension: DimensionKey, measur
 		.sort((a, b) => (b.values[primary.key] ?? 0) - (a.values[primary.key] ?? 0));
 }
 
+export interface MatrixResult {
+	rowLabels: string[];
+	colLabels: string[];
+	cells: Record<string, Record<string, number>>;
+	rowTotals: Record<string, number>;
+	colTotals: Record<string, number>;
+	grandTotal: number;
+}
+
+/**
+ * Cross-tab pivot for MatrixWidget: rows x columns, one measure per cell,
+ * plus row/column subtotals and a grand total. Rows and columns are each
+ * capped to their top-N by total (`rowLimit`/`colLimit`) so the table stays
+ * readable — this is a flat pivot, not a hierarchical/expandable matrix.
+ */
+export function aggregateMatrix(
+	rows: SalesRow[],
+	rowDimension: DimensionKey,
+	colDimension: DimensionKey,
+	measure: MeasureKey,
+	rowLimit = 8,
+	colLimit = 6
+): MatrixResult {
+	const agg = MEASURES[measure].agg;
+	const rowLabels = aggregateBy(rows, rowDimension, measure)
+		.slice(0, rowLimit)
+		.map((p) => p.label);
+	const colLabels = aggregateBy(rows, colDimension, measure)
+		.slice(0, colLimit)
+		.map((p) => p.label);
+	const rowLabelSet = new Set(rowLabels);
+	const colLabelSet = new Set(colLabels);
+
+	const cells: Record<string, Record<string, number>> = {};
+	const rowTotals: Record<string, number> = {};
+	const colTotals: Record<string, number> = {};
+	let grandTotal = 0;
+
+	for (const rowLabel of rowLabels) {
+		cells[rowLabel] = {};
+		const rowRows = rows.filter((r) => r[rowDimension] === rowLabel);
+		for (const colLabel of colLabels) {
+			const cellRows = rowRows.filter((r) => r[colDimension] === colLabel);
+			cells[rowLabel][colLabel] = agg(cellRows);
+		}
+		rowTotals[rowLabel] = agg(rowRows.filter((r) => colLabelSet.has(r[colDimension])));
+	}
+	for (const colLabel of colLabels) {
+		const colRows = rows.filter((r) => r[colDimension] === colLabel && rowLabelSet.has(r[rowDimension]));
+		colTotals[colLabel] = agg(colRows);
+	}
+	grandTotal = agg(rows.filter((r) => rowLabelSet.has(r[rowDimension]) && colLabelSet.has(r[colDimension])));
+
+	return { rowLabels, colLabels, cells, rowTotals, colTotals, grandTotal };
+}
+
 // ---------- Date grain bucketing (Year -> Quarter -> Month -> Week -> Day) ----------
 
 function isoWeek(date: Date): number {

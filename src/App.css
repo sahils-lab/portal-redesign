@@ -1823,6 +1823,145 @@ button {
 	background: var(--color-primary-50);
 }
 
+/* ---------- WaterfallWidget ---------- */
+
+.waterfall-widget {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-sm);
+}
+
+.waterfall-widget__svg {
+	width: 100%;
+	height: 130px;
+	overflow: visible;
+}
+
+.waterfall-widget__zero-line {
+	stroke: var(--color-secondary-100);
+	stroke-width: 1;
+}
+
+.waterfall-widget__bar--increase {
+	fill: var(--color-success);
+}
+
+.waterfall-widget__bar--decrease {
+	fill: var(--color-danger);
+}
+
+.waterfall-widget__bar--total {
+	fill: var(--color-primary);
+}
+
+.waterfall-widget__labels {
+	display: flex;
+	justify-content: space-between;
+	gap: 2px;
+	font-size: var(--text-preset-8);
+	color: var(--color-secondary-300);
+	overflow: hidden;
+}
+
+.waterfall-widget__labels span {
+	flex: 1;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.waterfall-widget__labels-total {
+	color: var(--color-primary-600);
+	font-weight: 600;
+}
+
+/* ---------- MatrixWidget ---------- */
+
+.matrix-widget__scroll {
+	overflow-x: auto;
+}
+
+.matrix-widget__table {
+	width: 100%;
+	border-collapse: collapse;
+	font-family: var(--font-table);
+}
+
+.matrix-widget__table th,
+.matrix-widget__table td {
+	text-align: right;
+	padding: 5px 8px;
+	font-size: var(--text-preset-8);
+	white-space: nowrap;
+}
+
+.matrix-widget__table th:first-child,
+.matrix-widget__table td:first-child {
+	text-align: left;
+}
+
+.matrix-widget__table th {
+	color: var(--color-secondary-500);
+	font-weight: 600;
+	font-family: var(--font-para);
+	border-bottom: 1px solid var(--color-secondary-100);
+}
+
+.matrix-widget__row-label {
+	font-weight: 500;
+}
+
+.matrix-widget__subtotal-col {
+	font-weight: 600;
+	border-left: 1px solid var(--color-secondary-100);
+}
+
+.matrix-widget__table tfoot td {
+	font-weight: 600;
+	border-top: 1px solid var(--color-secondary-100);
+	color: var(--color-secondary-900);
+}
+
+/* ---------- WhatIfWidget ---------- */
+
+.whatif-widget {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-sm);
+	padding-top: var(--space-sm);
+}
+
+.whatif-widget__row {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+}
+
+.whatif-widget__label {
+	font-size: var(--text-preset-8);
+	color: var(--color-secondary-500);
+}
+
+.whatif-widget__value {
+	font-size: var(--text-preset-6);
+	font-weight: 600;
+	color: var(--color-primary-600);
+	font-family: var(--font-table);
+}
+
+.whatif-widget__slider {
+	width: 100%;
+	accent-color: var(--color-primary);
+}
+
+.whatif-widget__bounds {
+	display: flex;
+	justify-content: space-between;
+	font-size: var(--text-preset-8);
+	color: var(--color-secondary-300);
+}
+
 /* ---------- Drill-through page ---------- */
 
 .drillthrough-page {

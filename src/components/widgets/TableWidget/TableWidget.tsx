@@ -18,6 +18,9 @@ const DRILL_THROUGH_DIMS: Partial<Record<DimensionKey, EntityType>> = {
 	region: "region",
 };
 
+const TOP_N_OPTIONS = [5, 10, 12, 20, 999];
+const DEFAULT_TOP_N = 12;
+
 /**
  * Ranked table over the sales fact table. Same three interactions as
  * ChartWidget, table-shaped: row click cross-filters every other widget,
@@ -32,6 +35,7 @@ export function TableWidget({
 	onOpenDrillThrough?: (entityType: EntityType, entityId: string) => void;
 }) {
 	const [dimension, setDimension] = useState<DimensionKey>(config.dimension);
+	const [topN, setTopN] = useState<number>(config.topN ?? DEFAULT_TOP_N);
 	const { filters } = useGlobalFilters();
 	const { crossFilters, toggleCrossFilter } = usePortalContext();
 
@@ -44,7 +48,7 @@ export function TableWidget({
 		return r;
 	}, [filters, crossFilters, dimension]);
 
-	const tableRows = useMemo(() => aggregateTable(rows, dimension, config.measures).slice(0, 12), [rows, dimension, config.measures]);
+	const tableRows = useMemo(() => aggregateTable(rows, dimension, config.measures).slice(0, topN), [rows, dimension, config.measures, topN]);
 
 	const entityType = DRILL_THROUGH_DIMS[dimension];
 
@@ -71,6 +75,14 @@ export function TableWidget({
 						{(Object.keys(DIMENSIONS) as DimensionKey[]).map((d) => (
 							<option key={d} value={d}>
 								{DIMENSIONS[d].label}
+							</option>
+						))}
+					</select>
+					<span className="chart-widget__toolbar-by">Top</span>
+					<select className="select-sm" value={topN} onChange={(e) => setTopN(Number(e.target.value))} title="Visual-level Top N filter">
+						{TOP_N_OPTIONS.map((n) => (
+							<option key={n} value={n}>
+								{n === 999 ? "All" : n}
 							</option>
 						))}
 					</select>

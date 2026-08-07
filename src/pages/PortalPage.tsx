@@ -244,11 +244,17 @@ export function PortalPage() {
 		const source = widgets.find((w) => w.id === id);
 		if (!source) return;
 		duplicateCounter += 1;
+		const newId = `w-dup-${duplicateCounter}`;
 		const copy: WidgetConfig = {
 			...source,
-			id: `w-dup-${duplicateCounter}`,
+			id: newId,
 			title: `${source.title} (copy)`,
 			grid: { ...source.grid, x: Math.min(source.grid.x + 1, 8 - source.grid.w), y: source.grid.y + source.grid.h },
+			// A What-if widget's parameterId is its identity in PortalContext's
+			// registry — copying it verbatim would make the duplicate silently
+			// share (and fight over) the original's slider state instead of
+			// getting its own, so it needs a fresh id like every other widget's `id`.
+			...(source.type === "whatif" ? { parameterId: newId } : {}),
 		};
 		history.set([...widgets, copy]);
 		setSelectedIds(new Set([copy.id]));
