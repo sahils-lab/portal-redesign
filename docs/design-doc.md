@@ -404,14 +404,56 @@ Tree, NLQ):
   registry entry (the same bug shape as reusing an id space instead of a
   value — see the crossFilter note above).
 
+## Bug fix: collision-aware placement (add / move / resize)
+
+Reported: adding a widget (from the stencil, drag or click) could land it
+directly on top of an existing widget with no warning, and dragging a
+resize handle past a neighbor grew the widget straight through it —
+`PortalCanvas` computed a ghost preview snapped to the cursor, but the
+*actual* placement on drop always ignored it (`nextGridPosition` just
+appended below everything, regardless of where you dropped), and resize had
+no bound at all. Once two widgets were overlapping, there was no affordance
+to tell them apart — the same drag/resize gestures used to fix it would
+just as happily create more overlaps.
+
+Fixed in `PortalCanvas.tsx`:
+- **Add** — the drop cell shown by the ghost preview is now the cell the
+  widget actually lands in (`onDropWidgetKey` gained an optional `at`
+  param, threaded through `createWidgetFromStencil`), instead of two
+  disconnected computations that only coincidentally looked related.
+- **Collision check** — a shared `collides()` AABB test runs during
+  `dragover` for both the stencil-add and move-existing flows. A blocked
+  cell renders the ghost red with a ✕ (`canvas-cell__ghost--blocked`) and
+  deliberately skips `preventDefault()` — per the HTML5 DnD spec that's what
+  makes the browser show its own "not-allowed" cursor (the reddish no-entry
+  glyph this was originally asked for) and stops `drop` from firing there at
+  all, rather than a bespoke overlay trying to fake that cue.
+- **Resize** — `maxNonCollidingSize()` clamps growth to the largest size
+  that doesn't overlap a neighbor (width first, then height at the
+  resulting width — good enough for a diagonal-handle drag without full
+  rectangle-packing), so dragging the resize handle now stops at the
+  neighbor's edge instead of resizing through it.
+- Ghost sizing for a stencil item in particular needed knowing which item
+  is mid-drag *during* `dragover`, which hit the same `dataTransfer.getData()`
+  timing limit already documented above for canvas-internal moves (readable
+  on `drop`/`dragstart` only). Fixed the same way: `StencilPanel` reports
+  drag start/end up to `PortalPage`, which passes the dragged `StencilItem`
+  back down to `PortalCanvas` as a prop, rather than guessing a fixed 2x2
+  ghost size for every widget type regardless of its real footprint
+  (`defaultWidgetSize()` in `createWidget.ts`, now the one place per-type
+  default sizes live — previously duplicated as literals in each
+  `createWidgetFromStencil` case).
+
 ## Open questions / next steps
 
 - [ ] Model the "Refresh Configuration" flow (pain point #5) — needs a
       second data source (e.g. a "source dataset" separate from "widget
       config") to demonstrate the correct merge order
 - [ ] Decide on a real layout library — current drag-to-move/resize is
-      hand-rolled pointer math, fine for a prototype but not collision-aware
-      (widgets can be dropped/resized on top of each other)
+      hand-rolled pointer math, fine for a prototype. It's now
+      collision-aware (see "Collision-aware placement" below) but doesn't
+      auto-reflow neighbors out of the way the way a packing layout engine
+      would — a blocked cell just refuses the drop/resize instead.
 - [ ] Add tests (none exist yet — the real codebase has thin test coverage
       in this area too, worth not repeating that)
 - [ ] **Batch 2 (AI-flavored):** Smart Insights (rule-based deltas/outliers

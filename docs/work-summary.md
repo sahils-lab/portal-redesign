@@ -80,6 +80,15 @@ that's actually useful, and what was removed/fixed because it wasn't. See
 - Drag ghost preview snapped to the grid cell it'll land in
 - Collapsible Stencil/Properties panels
 
+**Bug fix: collision-aware placement**
+- Adding a widget could land it directly on top of an existing one, and
+  resizing could grow a widget straight through its neighbor — the ghost
+  preview shown while dragging was cosmetic and disconnected from where the
+  widget actually landed. Fixed: drop position and resize growth are now
+  collision-checked against other widgets, a blocked cell shows red with a
+  ✕ and the browser's native "not-allowed" cursor, and the drop is rejected
+  rather than silently placed somewhere else.
+
 ## Removed / fixed — wasn't useful as it was
 
 - **Decorative buttons that did nothing** — Save, Publish, Preview, Undo,

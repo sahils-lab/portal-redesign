@@ -167,6 +167,10 @@ export function PortalPage() {
 	const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
 	const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
 	const [drillThrough, setDrillThrough] = useState<{ entityType: EntityType; entityId: string } | null>(null);
+	// Which stencil item is mid-drag, if any — lifted up from StencilPanel so
+	// PortalCanvas can read it during dragover/drop (dataTransfer.getData()
+	// isn't readable until drop, same constraint as moving an existing widget).
+	const [draggingStencilItem, setDraggingStencilItem] = useState<StencilItem | null>(null);
 
 	const openDrillThrough = (entityType: EntityType, entityId: string) => setDrillThrough({ entityType, entityId });
 	const closeDrillThrough = () => setDrillThrough(null);
@@ -209,8 +213,9 @@ export function PortalPage() {
 		window.setTimeout(() => setToast(null), 2500);
 	};
 
-	const handleAddWidget = (item: StencilItem) => {
-		const created = createWidgetFromStencil(item, widgets);
+	/** `at`, when given, is a PortalCanvas-validated (collision-checked) drop cell — omitted for click-to-add, which falls back to appending below everything else. */
+	const handleAddWidget = (item: StencilItem, at?: { x: number; y: number }) => {
+		const created = createWidgetFromStencil(item, widgets, at);
 		if (!created) {
 			showToast(`"${item.label}" isn't implemented in this prototype yet.`);
 			return;
@@ -220,9 +225,9 @@ export function PortalPage() {
 	};
 
 	/** Used by canvas drop handling — stencil items are identified by key over the DataTransfer wire format. */
-	const handleAddWidgetByKey = (key: string) => {
+	const handleAddWidgetByKey = (key: string, at?: { x: number; y: number }) => {
 		const item = findStencilItem(key);
-		if (item) handleAddWidget(item);
+		if (item) handleAddWidget(item, at);
 	};
 
 	const handleDeleteWidget = (id: string) => {
@@ -554,7 +559,12 @@ export function PortalPage() {
 					)}
 					{!presentationMode && <GlobalFilterBar />}
 					<div className="portal-builder__body">
-						<StencilPanel open={stencilOpen && !readOnly} onAddWidget={handleAddWidget} />
+						<StencilPanel
+							open={stencilOpen && !readOnly}
+							onAddWidget={handleAddWidget}
+							onDragStartItem={setDraggingStencilItem}
+							onDragEndItem={() => setDraggingStencilItem(null)}
+						/>
 						<PortalCanvas
 							widgets={displayedWidgets}
 							selectedIds={selectedIds}
@@ -568,6 +578,7 @@ export function PortalPage() {
 							zoom={zoom}
 							deviceWidth={deviceWidths[deviceMode]}
 							onOpenDrillThrough={openDrillThrough}
+							draggingStencilItem={draggingStencilItem}
 						/>
 						<PropertiesPanel open={propertiesOpen && !readOnly} selected={selectedWidget} onUpdate={handleUpdateWidget} />
 					</div>

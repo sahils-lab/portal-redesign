@@ -775,6 +775,19 @@ button {
 	background: var(--color-primary-50);
 	border: 2px dashed var(--color-primary);
 	pointer-events: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Shown while dragging over a cell that's already occupied (or a stencil
+   item that isn't wired up to a real widget type) — paired with skipping
+   preventDefault() in PortalCanvas so the browser's own "not-allowed"
+   cursor shows too, not just this red box. */
+.canvas-cell__ghost--blocked {
+	background: var(--color-danger-50);
+	border-color: var(--color-danger);
+	color: var(--color-danger);
 }
 
 .canvas-cell__actions {

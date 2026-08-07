@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
 import type { GridPosition, WidgetConfig } from "../types/widget";
 import type { EntityType } from "../types/analytics";
+import type { StencilItem } from "./builder/stencilConfig";
+import { defaultWidgetSize } from "./builder/createWidget";
 import { WidgetRenderer } from "./widgets/WidgetRenderer";
 import { usePortalContext } from "../context/PortalContext";
 import { Icon } from "./icons/Icon";
@@ -23,6 +25,36 @@ interface AlignGuides {
 	vertical: number[];
 	/** Row indices where a horizontal guide line should render. */
 	horizontal: number[];
+}
+
+interface GhostCell extends GridPosition {
+	/** True when this cell overlaps an existing widget (or the dragged stencil item isn't wired up) — renders red and blocks the drop instead of silently landing wherever there's room. */
+	blocked: boolean;
+}
+
+/** Simple AABB overlap check in grid-unit space — the collision test both the stencil-add and move-existing drag flows share. */
+function collides(candidate: GridPosition, widgets: WidgetConfig[], excludeId?: string): boolean {
+	return widgets.some((w) => {
+		if (w.id === excludeId) return false;
+		const g = w.grid;
+		return candidate.x < g.x + g.w && candidate.x + candidate.w > g.x && candidate.y < g.y + g.h && candidate.y + candidate.h > g.y;
+	});
+}
+
+/** Shrinks a resize target down to the largest size that doesn't collide, one dimension at a time (width first, then height at the resulting width) — good enough for a diagonal-handle drag without needing true rectangle-packing. */
+function maxNonCollidingSize(
+	x: number,
+	y: number,
+	desiredW: number,
+	desiredH: number,
+	widgets: WidgetConfig[],
+	excludeId: string
+): { w: number; h: number } {
+	let w = desiredW;
+	while (w > 1 && collides({ x, y, w, h: desiredH }, widgets, excludeId)) w--;
+	let h = desiredH;
+	while (h > 1 && collides({ x, y, w, h }, widgets, excludeId)) h--;
+	return { w, h };
 }
 
 /**
@@ -53,13 +85,14 @@ export function PortalCanvas({
 	zoom = 1,
 	deviceWidth = null,
 	onOpenDrillThrough,
+	draggingStencilItem = null,
 }: {
 	widgets: WidgetConfig[];
 	selectedIds: Set<string>;
 	onSelect: (id: string, additive: boolean) => void;
 	onDelete: (id: string) => void;
 	onDuplicate: (id: string) => void;
-	onDropWidgetKey: (key: string) => void;
+	onDropWidgetKey: (key: string, at?: { x: number; y: number }) => void;
 	onMoveWidget: (id: string, position: Pick<GridPosition, "x" | "y">) => void;
 	onResizeWidget: (id: string, size: Pick<GridPosition, "w" | "h">) => void;
 	/** Preview/presentation mode — disables drag-move, resize, duplicate, delete, and the right-click menu, not just their visual affordances. */
@@ -70,10 +103,12 @@ export function PortalCanvas({
 	deviceWidth?: number | null;
 	/** Opens the drill-through detail page for a Chart/Table row's entity. */
 	onOpenDrillThrough?: (entityType: EntityType, entityId: string) => void;
+	/** The stencil item currently being dragged from StencilPanel, if any — lifted up to PortalPage and passed back down, the same workaround as `draggingId` below, since a drag that starts in a sibling component can't read `dataTransfer.getData()` mid-drag either. Used to size/validate the ghost against the item's actual widget footprint instead of a hardcoded guess. */
+	draggingStencilItem?: StencilItem | null;
 }) {
 	const { dataMode, setDataMode, crossFilters, clearCrossFilterDimension, clearCrossFilters } = usePortalContext();
 	const [isDragOver, setIsDragOver] = useState(false);
-	const [ghostCell, setGhostCell] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+	const [ghostCell, setGhostCell] = useState<GhostCell | null>(null);
 	const [alignGuides, setAlignGuides] = useState<AlignGuides | null>(null);
 	const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 	// The HTML5 DnD spec only exposes dataTransfer.getData() on `drop` (and
@@ -132,30 +167,61 @@ export function PortalCanvas({
 	const isRelevantDrag = (e: DragEvent<HTMLDivElement>) =>
 		e.dataTransfer.types.includes(STENCIL_DND_TYPE) || e.dataTransfer.types.includes(CANVAS_WIDGET_DND_TYPE);
 
+	/**
+	 * Both drag flows funnel through here: compute the target cell, clamp it
+	 * onto the grid, and flag it `blocked` if it would overlap an existing
+	 * widget (or — for a stencil add — the dragged item isn't a wired-up
+	 * widget type at all). A blocked cell deliberately does NOT get
+	 * `preventDefault()`, which is what makes the browser show its native
+	 * "not-allowed" cursor (the reddish no-entry glyph) instead of the
+	 * copy/move cursor, and stops `drop` from firing here at all — so a
+	 * blocked drop can't silently land the widget somewhere else the way it
+	 * used to (the ghost preview was purely cosmetic before; the actual
+	 * placement always ignored it and appended below everything).
+	 */
 	const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
 		if (readOnly || !isRelevantDrag(e)) return;
-		e.preventDefault();
 		const isMove = e.dataTransfer.types.includes(CANVAS_WIDGET_DND_TYPE);
-		e.dataTransfer.dropEffect = isMove ? "move" : "copy";
-		setIsDragOver(true);
-
 		const cell = cellFromPointer(e.clientX, e.clientY);
-		if (!cell) return;
+		if (!cell) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = isMove ? "move" : "copy";
+			setIsDragOver(true);
+			return;
+		}
 
 		if (isMove) {
 			const movingWidget = widgets.find((w) => w.id === draggingId);
 			const w = movingWidget?.grid.w ?? 2;
 			const h = movingWidget?.grid.h ?? 2;
-			const ghost = { x: Math.max(0, Math.min(cell.x, GRID_COLUMNS - w)), y: Math.max(0, cell.y), w, h };
-			setGhostCell(ghost);
-			if (movingWidget) setAlignGuides(computeAlignGuides(ghost, movingWidget.id));
+			const x = Math.max(0, Math.min(cell.x, GRID_COLUMNS - w));
+			const y = Math.max(0, cell.y);
+			const blocked = movingWidget ? collides({ x, y, w, h }, widgets, movingWidget.id) : false;
+			setGhostCell({ x, y, w, h, blocked });
+			if (movingWidget) setAlignGuides(computeAlignGuides({ x, y, w, h }, movingWidget.id));
+			if (blocked) {
+				setIsDragOver(false);
+				return;
+			}
+			e.preventDefault();
+			e.dataTransfer.dropEffect = "move";
+			setIsDragOver(true);
 			return;
 		}
 
-		const w = 2;
-		const h = 2;
-		setGhostCell({ x: Math.max(0, Math.min(cell.x, GRID_COLUMNS - w)), y: Math.max(0, cell.y), w, h });
+		const { w, h } = draggingStencilItem?.widgetType ? defaultWidgetSize(draggingStencilItem.widgetType) : { w: 2, h: 2 };
+		const x = Math.max(0, Math.min(cell.x, GRID_COLUMNS - w));
+		const y = Math.max(0, cell.y);
+		const blocked = !draggingStencilItem?.widgetType || collides({ x, y, w, h }, widgets);
+		setGhostCell({ x, y, w, h, blocked });
 		setAlignGuides(null);
+		if (blocked) {
+			setIsDragOver(false);
+			return;
+		}
+		e.preventDefault();
+		e.dataTransfer.dropEffect = "copy";
+		setIsDragOver(true);
 	};
 
 	const handleDragLeave = () => {
@@ -168,34 +234,39 @@ export function PortalCanvas({
 		setDraggingId(null);
 	};
 
-	function computeDropCell(e: DragEvent<HTMLDivElement>, movingWidgetWidth: number): { x: number; y: number } | null {
-		const cell = cellFromPointer(e.clientX, e.clientY);
-		if (!cell) return null;
-		return {
-			x: Math.max(0, Math.min(cell.x, GRID_COLUMNS - movingWidgetWidth)),
-			y: Math.max(0, cell.y),
-		};
-	}
-
 	const handleDrop = (e: DragEvent<HTMLDivElement>) => {
 		e.preventDefault();
+		const blocked = ghostCell?.blocked ?? false;
 		setIsDragOver(false);
 		setGhostCell(null);
 		setAlignGuides(null);
 		setDraggingId(null);
-		if (readOnly) return;
+		if (readOnly || blocked) return;
 
 		const movingId = e.dataTransfer.getData(CANVAS_WIDGET_DND_TYPE);
 		if (movingId) {
 			const movingWidget = widgets.find((w) => w.id === movingId);
 			if (!movingWidget) return;
-			const cell = computeDropCell(e, movingWidget.grid.w);
-			if (cell) onMoveWidget(movingId, cell);
+			const cell = cellFromPointer(e.clientX, e.clientY);
+			if (!cell) return;
+			const x = Math.max(0, Math.min(cell.x, GRID_COLUMNS - movingWidget.grid.w));
+			const y = Math.max(0, cell.y);
+			if (collides({ x, y, w: movingWidget.grid.w, h: movingWidget.grid.h }, widgets, movingId)) return;
+			onMoveWidget(movingId, { x, y });
 			return;
 		}
 
 		const key = e.dataTransfer.getData(STENCIL_DND_TYPE);
-		if (key) onDropWidgetKey(key);
+		if (!key) return;
+		const cell = cellFromPointer(e.clientX, e.clientY);
+		if (!cell) {
+			onDropWidgetKey(key);
+			return;
+		}
+		const dropSize = draggingStencilItem?.widgetType ? defaultWidgetSize(draggingStencilItem.widgetType) : { w: 2, h: 2 };
+		const x = Math.max(0, Math.min(cell.x, GRID_COLUMNS - dropSize.w));
+		const y = Math.max(0, cell.y);
+		onDropWidgetKey(key, { x, y });
 	};
 
 	const handleResizeStart = useCallback(
@@ -215,8 +286,14 @@ export function PortalCanvas({
 			const handlePointerMove = (moveEvent: PointerEvent) => {
 				const deltaCols = Math.round((moveEvent.clientX - startX) / (colWidth + gap));
 				const deltaRows = Math.round((moveEvent.clientY - startY) / (rowHeight + gap));
-				const w = Math.max(1, Math.min(startW + deltaCols, GRID_COLUMNS - widget.grid.x));
-				const h = Math.max(1, startH + deltaRows);
+				const desiredW = Math.max(1, Math.min(startW + deltaCols, GRID_COLUMNS - widget.grid.x));
+				const desiredH = Math.max(1, startH + deltaRows);
+				// Grow only as far as the next widget in the way, instead of resizing
+				// straight through it — this is what used to leave two widgets
+				// visually overlapping (and stuck that way, since nothing pushed
+				// either one back apart) any time a resize handle was dragged past a
+				// neighbor.
+				const { w, h } = maxNonCollidingSize(widget.grid.x, widget.grid.y, desiredW, desiredH, widgets, widget.id);
 				onResizeWidget(widget.id, { w, h });
 			};
 
@@ -303,12 +380,16 @@ export function PortalCanvas({
 						<div className="portal-canvas__grid" ref={gridRef}>
 							{ghostCell && (
 								<div
-									className="canvas-cell__ghost"
+									className={
+										ghostCell.blocked ? "canvas-cell__ghost canvas-cell__ghost--blocked" : "canvas-cell__ghost"
+									}
 									style={{
 										gridColumn: `${ghostCell.x + 1} / span ${ghostCell.w}`,
 										gridRow: `${ghostCell.y + 1} / span ${ghostCell.h}`,
 									}}
-								/>
+								>
+									{ghostCell.blocked && <Icon name="close" size={16} />}
+								</div>
 							)}
 							{alignGuides?.vertical.map((col) => (
 								<div
