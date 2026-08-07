@@ -400,6 +400,16 @@ button {
 	background: var(--color-primary-50);
 }
 
+.btn--outline-danger {
+	background: var(--color-surface);
+	border-color: var(--color-danger);
+	color: var(--color-danger);
+}
+
+.btn--outline-danger:hover {
+	background: var(--color-danger-50);
+}
+
 .btn--sm {
 	padding: 5px 10px;
 	font-size: var(--text-preset-7);

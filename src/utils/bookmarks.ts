@@ -47,3 +47,8 @@ export function deleteBookmark(id: string): Bookmark[] {
 	save(next);
 	return next;
 }
+
+export function clearBookmarks(): Bookmark[] {
+	save([]);
+	return [];
+}

@@ -35,6 +35,7 @@ export function BuilderHeader({
 	onAddPage,
 	onRenamePage,
 	onDeletePage,
+	onDeleteEverything,
 	bookmarksSlot,
 }: {
 	title: string;
@@ -66,6 +67,8 @@ export function BuilderHeader({
 	onAddPage: () => void;
 	onRenamePage: (id: string, name: string) => void;
 	onDeletePage: (id: string) => void;
+	/** Full factory reset — every page's widgets, saved draft/published, global filters, and bookmarks. Irreversible, unlike everything else in this header (Undo/Redo cover the rest), so it's placed away from the primary Save/Publish cluster and its own click handler confirms before acting. */
+	onDeleteEverything: () => void;
 	bookmarksSlot?: ReactNode;
 }) {
 	const [editing, setEditing] = useState(false);
@@ -180,6 +183,14 @@ export function BuilderHeader({
 				</button>
 				<button type="button" className="link-btn" onClick={onToggleProperties}>
 					{propertiesOpen ? "Hide Properties" : "Show Properties"}
+				</button>
+				<button
+					type="button"
+					className="btn btn--outline-danger btn--sm"
+					onClick={onDeleteEverything}
+					title="Delete every page's widgets, saved draft/published, filters, and bookmarks"
+				>
+					<Icon name="trash" size={13} /> Delete everything
 				</button>
 			</div>
 		</div>

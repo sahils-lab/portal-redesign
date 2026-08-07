@@ -7,7 +7,7 @@ import { PortalCanvas } from "../components/PortalCanvas";
 import { GlobalFilterBar } from "../components/filters/GlobalFilterBar";
 import { DrillThroughPage } from "./DrillThroughPage";
 import { BookmarksMenu } from "../components/builder/BookmarksMenu";
-import type { BookmarkSnapshot } from "../utils/bookmarks";
+import { clearBookmarks, type BookmarkSnapshot } from "../utils/bookmarks";
 import { StencilPanel } from "../components/builder/StencilPanel";
 import { PropertiesPanel } from "../components/builder/PropertiesPanel";
 import { BuilderHeader } from "../components/builder/BuilderHeader";
@@ -124,8 +124,8 @@ function isTypingTarget(el: EventTarget | null): boolean {
 }
 
 export function PortalPage() {
-	const { dataMode, setDataMode, crossFilters, restoreCrossFilters } = usePortalContext();
-	const { filters: globalFilters, applyAll: applyGlobalFilterSet } = useGlobalFilters();
+	const { dataMode, setDataMode, crossFilters, restoreCrossFilters, clearCrossFilters } = usePortalContext();
+	const { filters: globalFilters, applyAll: applyGlobalFilterSet, resetAll: resetGlobalFilters } = useGlobalFilters();
 
 	const [pageTitle, setPageTitle] = useState("Test2");
 	const [pages, setPages] = useState<PortalPageDoc[]>([
@@ -171,6 +171,11 @@ export function PortalPage() {
 	// PortalCanvas can read it during dragover/drop (dataTransfer.getData()
 	// isn't readable until drop, same constraint as moving an existing widget).
 	const [draggingStencilItem, setDraggingStencilItem] = useState<StencilItem | null>(null);
+	// Bumped on a full reset so BookmarksMenu remounts (via `key`) and
+	// re-reads bookmarks from storage — it loads its list once into its own
+	// state on mount, so clearing localStorage underneath it wouldn't
+	// otherwise be reflected without this.
+	const [resetCounter, setResetCounter] = useState(0);
 
 	const openDrillThrough = (entityType: EntityType, entityId: string) => setDrillThrough({ entityType, entityId });
 	const closeDrillThrough = () => setDrillThrough(null);
@@ -283,6 +288,42 @@ export function PortalPage() {
 		draftStorage.save({ pageTitle, pages, activePageId });
 		setSaveStatus("saved");
 		showToast("Draft saved");
+	};
+
+	/**
+	 * Full factory reset — the one destructive action in this app that isn't
+	 * covered by Undo (it wipes the undo history too), so it's gated behind an
+	 * explicit confirm rather than firing on a single click like every other
+	 * toolbar button. Clears every page's widgets, both localStorage stores
+	 * (draft and published), the global filter bar, and saved bookmarks.
+	 * `draftStorage` gets an explicit empty write (not just `.clear()`) — a
+	 * missing draft key falls back to the hardcoded demo `initialWidgets` on
+	 * next mount, which would silently undo the reset on refresh otherwise.
+	 */
+	const handleFactoryReset = () => {
+		const confirmed = window.confirm(
+			"Delete everything? This clears every page's widgets, the global filter bar, all saved bookmarks, and the saved draft/published dashboard. This cannot be undone."
+		);
+		if (!confirmed) return;
+
+		const blankPage: PortalPageDoc = { id: "page-1", name: "Page 1", widgets: [] };
+		setPageTitle("Untitled");
+		setPages([blankPage]);
+		setActivePageId(blankPage.id);
+		history.replace([]);
+		setSelectedIds(new Set());
+		setPublishedPages({});
+		setPreviewMode(false);
+		setDataMode("live");
+		clearCrossFilters();
+		resetGlobalFilters();
+		clearBookmarks();
+		setResetCounter((c) => c + 1);
+
+		draftStorage.save({ pageTitle: "Untitled", pages: [blankPage], activePageId: blankPage.id });
+		publishedStorage.clear();
+		setSaveStatus("saved");
+		showToast("Everything deleted");
 	};
 
 	const handlePublish = () => {
@@ -544,7 +585,10 @@ export function PortalPage() {
 					onAddPage={addPage}
 					onRenamePage={renamePage}
 					onDeletePage={deletePage}
-					bookmarksSlot={<BookmarksMenu getSnapshot={buildBookmarkSnapshot} onApply={applyBookmarkSnapshot} />}
+					onDeleteEverything={handleFactoryReset}
+					bookmarksSlot={
+						<BookmarksMenu key={resetCounter} getSnapshot={buildBookmarkSnapshot} onApply={applyBookmarkSnapshot} />
+					}
 				/>
 			)}
 			{drillThrough ? (

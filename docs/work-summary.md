@@ -74,6 +74,13 @@ that's actually useful, and what was removed/fixed because it wasn't. See
   ±20%") that any Chart widget can opt into applying as a live multiplier,
   via a page-wide registry keyed by parameter id (not widget id)
 
+**"Delete everything" (full factory reset)**
+- New danger-styled button in the header, separate from the Global Filter
+  Bar's existing "Reset all" (which only clears filters) — collapses every
+  page back to one blank page, undo history, both localStorage stores
+  (draft + published), global filters, cross-filters, and saved bookmarks
+- Gated behind a confirm dialog since it's the one action Undo can't reach
+
 **Polish**
 - Skeleton loading states instead of "Loading…" text
 - Multi-select, keyboard delete, duplicate widget, right-click context menu

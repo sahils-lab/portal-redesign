@@ -458,6 +458,50 @@ Fixed in `PortalCanvas.tsx`:
   the drag-clamping math share one number instead of two copies that happened
   to agree.
 
+## Feature: "Delete everything" (full factory reset)
+
+A "Reset all" button already existed on the Global Filter Bar
+(`GlobalFilterBar.tsx`) — it only clears the active global filters (date
+range, Region, Business Unit, Warehouse, Category, Brand, Seller) back to
+empty, since that's all `FilterContext` owns. It doesn't touch widgets,
+pages, publish state, or bookmarks, which is correct for what it's
+scoped to, but left no way to actually reset the whole dashboard.
+
+`onDeleteEverything` (`BuilderHeader.tsx`, wired from `handleFactoryReset`
+in `PortalPage.tsx`) is that missing wider action — it clears:
+- every page's widgets, collapsing back to a single blank page
+- the undo/redo history (there's nothing sensible to undo back to across a
+  full reset)
+- both localStorage stores: draft (`draftStorage`) and published
+  (`publishedStorage`)
+- the global filter bar (`FilterContext.resetAll`)
+- active cross-filters (`PortalContext.clearCrossFilters`)
+- saved bookmarks (`utils/bookmarks.ts`'s new `clearBookmarks()`)
+
+Two things worth knowing if this needs touching again:
+- **The empty draft has to be actively saved, not just cleared.** On mount,
+  `PortalPage` falls back to the hardcoded demo `initialWidgets` array
+  whenever `draftStorage.load()` finds nothing — so merely calling
+  `draftStorage.clear()` would silently undo the reset on the next page
+  refresh (the demo content would reappear). `handleFactoryReset` explicitly
+  `draftStorage.save()`s the blank page instead.
+- **`BookmarksMenu` owns its own state**, loaded once from `localStorage` via
+  a `useState` initializer — it has no prop-driven way to know its
+  underlying storage was cleared out from under it. Fixed by giving it a
+  `key={resetCounter}` from `PortalPage`, incremented on reset, which forces
+  a clean remount (and a fresh `loadBookmarks()`) rather than adding a
+  refetch effect for a single caller.
+
+This is the one action in the whole builder that Undo can't reach (it wipes
+undo's own history), so unlike every other button here it's gated behind a
+`window.confirm()` rather than firing immediately — the codebase has no
+custom modal component, and building one for a single confirmation felt
+like more machinery than the actual risk warranted. Placed in the toolbar's
+second row, away from the Save/Publish cluster, with distinct danger
+styling (`btn--outline-danger`) rather than tucked into the still-decorative
+"⋮ More options" button, so it's discoverable without being a stray click
+away from Save.
+
 ## Open questions / next steps
 
 - [ ] Model the "Refresh Configuration" flow (pain point #5) — needs a

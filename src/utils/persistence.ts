@@ -38,6 +38,14 @@ function save<T>(key: string, value: T): void {
 	}
 }
 
+function clear(key: string): void {
+	try {
+		localStorage.removeItem(key);
+	} catch {
+		// Storage disabled — non-critical for a prototype.
+	}
+}
+
 /**
  * "Save" persists the live draft; "Publish" persists a separate snapshot —
  * mirroring the real product's draft/published split rather than treating
@@ -48,9 +56,11 @@ function save<T>(key: string, value: T): void {
 export const draftStorage = {
 	load: () => load<PersistedDraft>(DRAFT_KEY),
 	save: (draft: PersistedDraft) => save(DRAFT_KEY, draft),
+	clear: () => clear(DRAFT_KEY),
 };
 
 export const publishedStorage = {
 	load: () => load<PersistedPublished>(PUBLISHED_KEY),
 	save: (published: PersistedPublished) => save(PUBLISHED_KEY, published),
+	clear: () => clear(PUBLISHED_KEY),
 };
