@@ -61,6 +61,19 @@ that's actually useful, and what was removed/fixed because it wasn't. See
   (`utils/analytics.ts`) backing all of the above, instead of the earlier
   two-region toy dataset
 
+**Power BI-parity batch: waterfall, matrix, top N, what-if parameter**
+- Waterfall chart — new widget type, shows each bucket's contribution
+  stacked into a running total ending in a "Total" bar (revenue/profit
+  bridge), colored by whether that bucket added or subtracted
+- Matrix widget — new widget type, a real cross-tab pivot (row dimension x
+  column dimension) with row/column subtotals and a grand total, not just a
+  ranked single-dimension table
+- Visual-level Top N filter — Chart/Table widgets got a per-widget 5/10/15/
+  20/All control, replacing a hardcoded 8/12-row limit with no user control
+- What-if parameter — new widget type, a slider (e.g. "Revenue growth
+  ±20%") that any Chart widget can opt into applying as a live multiplier,
+  via a page-wide registry keyed by parameter id (not widget id)
+
 **Polish**
 - Skeleton loading states instead of "Loading…" text
 - Multi-select, keyboard delete, duplicate widget, right-click context menu

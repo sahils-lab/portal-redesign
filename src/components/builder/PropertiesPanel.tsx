@@ -32,7 +32,9 @@ export function PropertiesPanel({
 						selected.type === "report" ||
 						selected.type === "recon" ||
 						selected.type === "chart" ||
-						selected.type === "table") && (
+						selected.type === "table" ||
+						selected.type === "waterfall" ||
+						selected.type === "matrix") && (
 						<div className="properties-field">
 							<label htmlFor="widget-label">Label</label>
 							<input
@@ -42,11 +44,67 @@ export function PropertiesPanel({
 								placeholder="Enter Label"
 								onChange={(e) => onUpdate(selected.id, { title: e.target.value })}
 							/>
-							{(selected.type === "chart" || selected.type === "table") && (
+							{(selected.type === "chart" ||
+								selected.type === "table" ||
+								selected.type === "waterfall" ||
+								selected.type === "matrix") && (
 								<p className="properties-panel__empty">Measure/dimension are set from the widget's own toolbar.</p>
 							)}
 						</div>
 					)}
+
+				{selected && selected.type === "whatif" && (
+					<>
+						<div className="properties-field">
+							<label htmlFor="widget-label">Label</label>
+							<input
+								id="widget-label"
+								type="text"
+								value={selected.label}
+								onChange={(e) => onUpdate(selected.id, { label: e.target.value })}
+							/>
+						</div>
+						<div className="properties-field">
+							<label htmlFor="widget-whatif-min">Min</label>
+							<input
+								id="widget-whatif-min"
+								type="number"
+								value={selected.min}
+								onChange={(e) => onUpdate(selected.id, { min: Number(e.target.value) })}
+							/>
+						</div>
+						<div className="properties-field">
+							<label htmlFor="widget-whatif-max">Max</label>
+							<input
+								id="widget-whatif-max"
+								type="number"
+								value={selected.max}
+								onChange={(e) => onUpdate(selected.id, { max: Number(e.target.value) })}
+							/>
+						</div>
+						<div className="properties-field">
+							<label htmlFor="widget-whatif-step">Step</label>
+							<input
+								id="widget-whatif-step"
+								type="number"
+								value={selected.step}
+								onChange={(e) => onUpdate(selected.id, { step: Number(e.target.value) })}
+							/>
+						</div>
+						<div className="properties-field">
+							<label htmlFor="widget-whatif-default">Default value</label>
+							<input
+								id="widget-whatif-default"
+								type="number"
+								value={selected.defaultValue}
+								onChange={(e) => onUpdate(selected.id, { defaultValue: Number(e.target.value) })}
+							/>
+						</div>
+						<p className="properties-panel__empty">
+							Chart/Table widgets with a percent parameter can apply it from their own toolbar.
+						</p>
+					</>
+				)}
 
 				{selected && selected.type === "title" && (
 					<>

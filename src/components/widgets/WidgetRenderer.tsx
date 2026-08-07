@@ -6,6 +6,9 @@ import { ReportWidget } from "./ReportWidget/ReportWidget";
 import { ReconWidget } from "./ReconWidget/ReconWidget";
 import { ChartWidget } from "./ChartWidget/ChartWidget";
 import { TableWidget } from "./TableWidget/TableWidget";
+import { WaterfallWidget } from "./WaterfallWidget/WaterfallWidget";
+import { MatrixWidget } from "./MatrixWidget/MatrixWidget";
+import { WhatIfWidget } from "./WhatIfWidget/WhatIfWidget";
 import { TitleWidget } from "./TitleWidget/TitleWidget";
 import { LabelWidget } from "./LabelWidget/LabelWidget";
 import { DividerWidget } from "./DividerWidget/DividerWidget";
@@ -42,6 +45,12 @@ export function WidgetRenderer({
 			return <ChartWidget config={config} onOpenDrillThrough={onOpenDrillThrough} />;
 		case "table":
 			return <TableWidget config={config} onOpenDrillThrough={onOpenDrillThrough} />;
+		case "waterfall":
+			return <WaterfallWidget config={config} />;
+		case "matrix":
+			return <MatrixWidget config={config} />;
+		case "whatif":
+			return <WhatIfWidget config={config} />;
 		case "title":
 			return <TitleWidget config={config} />;
 		case "label":

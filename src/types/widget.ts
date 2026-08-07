@@ -15,6 +15,9 @@ export type WidgetType =
 	| "recon"
 	| "chart"
 	| "table"
+	| "waterfall"
+	| "matrix"
+	| "whatif"
 	| "title"
 	| "label"
 	| "divider"
@@ -79,6 +82,8 @@ export interface ChartWidgetConfig extends BaseWidgetConfig {
 	/** "date" drills Year -> Quarter -> Month -> Week -> Day; any DimensionKey drills through its catalog hierarchy where one exists (category -> subcategory -> product). */
 	dimension: DimensionKey | "date";
 	dateGrain: DateGrain;
+	/** Visual-level "Top N" filter — how many bars/points to show, independent of the dashboard-wide global filters. Undefined falls back to the widget's historical default (8). */
+	topN?: number;
 }
 
 /** Ranked table over the sales fact table — rows are click-to-cross-filter and each has a "View details" drill-through action. */
@@ -86,6 +91,55 @@ export interface TableWidgetConfig extends BaseWidgetConfig {
 	type: "table";
 	dimension: DimensionKey;
 	measures: MeasureKey[];
+	/** Visual-level "Top N" filter, same concept as ChartWidgetConfig.topN. Undefined falls back to 12. */
+	topN?: number;
+}
+
+/**
+ * Bridge/waterfall chart: shows a measure's value across ordered buckets
+ * (a date grain, or a ranked dimension) as period-over-period deltas that
+ * sum to a running total, ending in an explicit "Total" bar — the standard
+ * Power BI waterfall shape for "how did we get from X to Y."
+ */
+export interface WaterfallWidgetConfig extends BaseWidgetConfig {
+	type: "waterfall";
+	measure: MeasureKey;
+	dimension: DimensionKey | "date";
+	dateGrain: DateGrain;
+	topN?: number;
+}
+
+/**
+ * Cross-tab pivot over the sales fact table: rows x columns, one measure per
+ * cell, with row/column subtotals and a grand total — Power BI's Matrix
+ * visual. Flat (not hierarchical/expandable) in this prototype; see
+ * docs/design-doc.md for the honestly-documented limitation.
+ */
+export interface MatrixWidgetConfig extends BaseWidgetConfig {
+	type: "matrix";
+	rowDimension: DimensionKey;
+	columnDimension: DimensionKey;
+	measure: MeasureKey;
+}
+
+/**
+ * What-if parameter: a slider-driven scenario input (e.g. "revenue growth
+ * %") that other widgets can opt into applying, so a dashboard viewer can
+ * see "what would this look like if X changed" without editing real data.
+ * The parameter's current value lives in PortalContext (`whatIfParams`),
+ * keyed by `parameterId` — any Chart/Table widget on the page can subscribe
+ * to it by id, the same "no widget-identity coupling" pattern crossFilter
+ * uses.
+ */
+export interface WhatIfWidgetConfig extends BaseWidgetConfig {
+	type: "whatif";
+	parameterId: string;
+	label: string;
+	min: number;
+	max: number;
+	step: number;
+	defaultValue: number;
+	unit: "percent" | "number";
 }
 
 /** Display-category widgets — no data fetch, pure config -> render. */
@@ -128,6 +182,9 @@ export type WidgetConfig =
 	| ReconWidgetConfig
 	| ChartWidgetConfig
 	| TableWidgetConfig
+	| WaterfallWidgetConfig
+	| MatrixWidgetConfig
+	| WhatIfWidgetConfig
 	| TitleWidgetConfig
 	| LabelWidgetConfig
 	| DividerWidgetConfig
